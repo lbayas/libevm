@@ -23,12 +23,25 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ava-labs/libevm/common"
 	"github.com/ava-labs/libevm/core"
 	"github.com/ava-labs/libevm/core/state"
+	"github.com/ava-labs/libevm/core/types"
 	"github.com/ava-labs/libevm/core/vm"
+	"github.com/ava-labs/libevm/ethdb"
 	"github.com/ava-labs/libevm/params"
 )
+
+// NewEmptyStateDB returns the disk layer, a [state.Database] from
+// [state.NewDatabaseForTesting], and a [state.StateDB] opened to
+// [types.EmptyRootHash].
+func NewEmptyStateDB(tb testing.TB) (ethdb.Database, state.Database, *state.StateDB) {
+	tb.Helper()
+
+	cache := state.NewDatabaseForTesting()
+	sdb, err := state.New(types.EmptyRootHash, cache)
+	require.NoError(tb, err, "state.New()")
+	return cache.TrieDB().Disk(), cache, sdb
+}
 
 // NewZeroEVM returns a new EVM backed by a [rawdb.NewMemoryDatabase]; all other
 // arguments to [vm.NewEVM] are the zero values of their respective types,
@@ -37,8 +50,7 @@ import (
 func NewZeroEVM(tb testing.TB, opts ...EVMOption) (*state.StateDB, *vm.EVM) {
 	tb.Helper()
 
-	sdb, err := state.New(common.Hash{}, state.NewDatabaseForTesting())
-	require.NoError(tb, err, "state.New()")
+	_, _, sdb := NewEmptyStateDB(tb)
 
 	args := &evmConstructorArgs{
 		vm.BlockContext{

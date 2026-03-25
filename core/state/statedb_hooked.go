@@ -265,3 +265,11 @@ func (s *hookedStateDB) Finalise(deleteEmptyObjects bool) {
 		}
 	}
 }
+
+func (s *hookedStateDB) TxHash() common.Hash {
+	return s.inner.TxHash()
+}
+
+func (s *hookedStateDB) TxIndex() int {
+	return s.inner.TxIndex()
+}

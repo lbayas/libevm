@@ -272,7 +272,7 @@ func (f *Filter) unindexedLogs(ctx context.Context, end uint64, logChan chan *ty
 
 // blockLogs returns the logs matching the filter criteria within a single block.
 func (f *Filter) blockLogs(ctx context.Context, header *types.Header) ([]*types.Log, error) {
-	if bloomFilter(header.Bloom, f.addresses, f.topics) {
+	if bloomFilter(maybeOverrideBloom(header, f.sys.backend), f.addresses, f.topics) {
 		return f.checkMatches(ctx, header)
 	}
 	return nil, nil
@@ -311,6 +311,32 @@ func (f *Filter) checkMatches(ctx context.Context, header *types.Header) ([]*typ
 		logs[i] = &logcopy
 	}
 	return logs, nil
+}
+
+// pendingLogs returns the logs matching the filter criteria within the pending block.
+func (f *Filter) pendingLogs() []*types.Log {
+	block, receipts := f.sys.backend.PendingBlockAndReceipts()
+	if block == nil || receipts == nil {
+		return nil
+	}
+	if bloomFilter(maybeOverrideBloom(block.Header(), f.sys.backend), f.addresses, f.topics) {
+		var unfiltered []*types.Log
+		for _, r := range receipts {
+			unfiltered = append(unfiltered, r.Logs...)
+		}
+		return filterLogs(unfiltered, nil, nil, f.addresses, f.topics)
+	}
+	return nil
+}
+
+// includes returns true if the element is present in the list.
+func includes[T comparable](things []T, element T) bool {
+	for _, thing := range things {
+		if thing == element {
+			return true
+		}
+	}
+	return false
 }
 
 // filterLogs creates a slice of logs matching the given criteria.

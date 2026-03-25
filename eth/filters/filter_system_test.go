@@ -141,6 +141,10 @@ func (b *testBackend) BloomStatus() (uint64, uint64) {
 	return params.BloomBitsBlocks, b.sections
 }
 
+func (b *testBackend) PendingBlockAndReceipts() (*types.Block, types.Receipts) {
+	return b.pendingBlock, b.pendingReceipts
+}
+
 func (b *testBackend) ServiceFilter(ctx context.Context, session *bloombits.MatcherSession) {
 	requests := make(chan chan *bloombits.Retrieval)
 

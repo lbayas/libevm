@@ -17,7 +17,18 @@
 // Package ethapi exposes the internal ethapi package.
 package ethapi
 
-import "github.com/ava-labs/libevm/internal/ethapi"
+import (
+	"context"
+	"math/big"
+	"time"
+
+	"github.com/ava-labs/libevm/common"
+	"github.com/ava-labs/libevm/core"
+	"github.com/ava-labs/libevm/core/types"
+	"github.com/ava-labs/libevm/internal/ethapi"
+	"github.com/ava-labs/libevm/params"
+	"github.com/ava-labs/libevm/rpc"
+)
 
 // Type aliases required by constructors.
 type (
@@ -26,12 +37,34 @@ type (
 )
 
 type (
-	// BlockChainAPI exposes RPC methods for querying chain data.
+	// EthereumAPI provides an API to access Ethereum related information.
+	EthereumAPI = ethapi.EthereumAPI
+	// BlockChainAPI provides an API to access Ethereum blockchain data.
 	BlockChainAPI = ethapi.BlockChainAPI
-	// TransactionAPI exposes RPC methods for querying and creating
-	// transactions.
+	// TransactionAPI exposes methods for reading and creating transaction data.
 	TransactionAPI = ethapi.TransactionAPI
+	// TxPoolAPI offers and API for the transaction pool. It only operates on
+	// data that is non-confidential.
+	TxPoolAPI = ethapi.TxPoolAPI
+	// DebugAPI is the collection of Ethereum APIs exposed over the debugging
+	// namespace.
+	DebugAPI = ethapi.DebugAPI
 )
+
+// Type aliases for types used as arguments or responses to the APIs.
+type (
+	RPCTransaction        = ethapi.RPCTransaction
+	TransactionArgs       = ethapi.TransactionArgs
+	StateOverride         = ethapi.StateOverride
+	BlockOverrides        = ethapi.BlockOverrides
+	RevertError           = ethapi.RevertError
+	SignTransactionResult = ethapi.SignTransactionResult
+)
+
+// NewEthereumAPI is identical to [ethapi.NewEthereumAPI].
+func NewEthereumAPI(b Backend) *EthereumAPI {
+	return ethapi.NewEthereumAPI(b)
+}
 
 // NewBlockChainAPI is identical to [ethapi.NewBlockChainAPI].
 func NewBlockChainAPI(b Backend) *BlockChainAPI {
@@ -41,4 +74,39 @@ func NewBlockChainAPI(b Backend) *BlockChainAPI {
 // NewTransactionAPI is identical to [ethapi.NewTransactionAPI].
 func NewTransactionAPI(b Backend, nonceLock *AddrLocker) *TransactionAPI {
 	return ethapi.NewTransactionAPI(b, nonceLock)
+}
+
+// NewTxPoolAPI is identical to [ethapi.NewTxPoolAPI].
+func NewTxPoolAPI(b Backend) *TxPoolAPI {
+	return ethapi.NewTxPoolAPI(b)
+}
+
+// NewDebugAPI is identical to [ethapi.NewDebugAPI].
+func NewDebugAPI(b Backend) *DebugAPI {
+	return ethapi.NewDebugAPI(b)
+}
+
+// NewRPCPendingTransaction is identical to [ethapi.NewRPCPendingTransaction].
+func NewRPCPendingTransaction(tx *types.Transaction, current *types.Header, config *params.ChainConfig) *RPCTransaction {
+	return ethapi.NewRPCPendingTransaction(tx, current, config)
+}
+
+// NewRPCTransaction is identical to [ethapi.NewRPCTransaction].
+func NewRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, blockTime uint64, index uint64, baseFee *big.Int, config *params.ChainConfig) *RPCTransaction {
+	return ethapi.NewRPCTransaction(tx, blockHash, blockNumber, blockTime, index, baseFee, config)
+}
+
+// MarshalReceipt is identical to [ethapi.MarshalReceipt].
+func MarshalReceipt(r *types.Receipt, blockHash common.Hash, blockNumber uint64, signer types.Signer, tx *types.Transaction, txIndex int) map[string]any {
+	return ethapi.MarshalReceipt(r, blockHash, blockNumber, signer, tx, txIndex)
+}
+
+// DoCall is identical to [ethapi.DoCall].
+func DoCall(ctx context.Context, b Backend, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride, blockOverrides *BlockOverrides, timeout time.Duration, globalGasCap uint64) (*core.ExecutionResult, error) {
+	return ethapi.DoCall(ctx, b, args, blockNrOrHash, overrides, blockOverrides, timeout, globalGasCap)
+}
+
+// NewRevertError is identical to [ethapi.NewRevertError].
+func NewRevertError(revert []byte) *RevertError {
+	return ethapi.NewRevertError(revert)
 }

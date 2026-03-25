@@ -363,6 +363,7 @@ func (b *backendMock) StateAndHeaderByNumberOrHash(ctx context.Context, blockNrO
 	return nil, nil, nil
 }
 func (b *backendMock) Pending() (*types.Block, types.Receipts, *state.StateDB) { return nil, nil, nil }
+func (b *backendMock) PendingBlockAndReceipts() (*types.Block, types.Receipts) { return nil, nil }
 func (b *backendMock) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
 	return nil, nil
 }
