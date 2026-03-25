@@ -28,11 +28,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/ava-labs/libevm/crypto"
 	"github.com/ava-labs/libevm/crypto/ecies"
 	"github.com/ava-labs/libevm/p2p/pipes"
 	"github.com/ava-labs/libevm/rlp"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -369,8 +369,7 @@ func TestHandshakeForwardCompatibility(t *testing.T) {
 
 func BenchmarkHandshakeRead(b *testing.B) {
 	var input = unhex(eip8HandshakeAuthTests[0].input)
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		var (
 			h   handshakeState
 			r   = bytes.NewReader(input)
@@ -427,7 +426,7 @@ func BenchmarkThroughput(b *testing.B) {
 	// Read N messages.
 	b.SetBytes(int64(len(msgdata)))
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _, _, err := conn2.Read()
 		if err != nil {
 			b.Fatal("read error:", err)

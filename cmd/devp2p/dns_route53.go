@@ -17,6 +17,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -25,13 +26,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ava-labs/libevm/log"
+	"github.com/ava-labs/libevm/p2p/dnsdisc"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/route53"
 	"github.com/aws/aws-sdk-go-v2/service/route53/types"
-	"github.com/ava-labs/libevm/log"
-	"github.com/ava-labs/libevm/p2p/dnsdisc"
 	"github.com/urfave/cli/v2"
 )
 
@@ -292,13 +293,7 @@ func sortChanges(changes []types.Change) {
 		if a.Action == b.Action {
 			return strings.Compare(*a.ResourceRecordSet.Name, *b.ResourceRecordSet.Name)
 		}
-		if score[string(a.Action)] < score[string(b.Action)] {
-			return -1
-		}
-		if score[string(a.Action)] > score[string(b.Action)] {
-			return 1
-		}
-		return 0
+		return cmp.Compare(score[string(a.Action)], score[string(b.Action)])
 	})
 }
 

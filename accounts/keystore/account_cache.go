@@ -28,10 +28,10 @@ import (
 	"sync"
 	"time"
 
-	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/ava-labs/libevm/accounts"
 	"github.com/ava-labs/libevm/common"
 	"github.com/ava-labs/libevm/log"
+	mapset "github.com/deckarep/golang-set/v2"
 )
 
 // Minimum amount of time between cache reloads. This limit applies if the platform does

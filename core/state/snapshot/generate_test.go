@@ -25,6 +25,7 @@ import (
 	"github.com/ava-labs/libevm/common"
 	"github.com/ava-labs/libevm/core/rawdb"
 	"github.com/ava-labs/libevm/core/types"
+	"github.com/ava-labs/libevm/crypto"
 	"github.com/ava-labs/libevm/ethdb"
 	"github.com/ava-labs/libevm/log"
 	"github.com/ava-labs/libevm/rlp"
@@ -34,16 +35,10 @@ import (
 	"github.com/ava-labs/libevm/triedb/hashdb"
 	"github.com/ava-labs/libevm/triedb/pathdb"
 	"github.com/holiman/uint256"
-	"golang.org/x/crypto/sha3"
 )
 
 func hashData(input []byte) common.Hash {
-	var hasher = sha3.NewLegacyKeccak256()
-	var hash common.Hash
-	hasher.Reset()
-	hasher.Write(input)
-	hasher.Sum(hash[:0])
-	return hash
+	return crypto.Keccak256Hash(input)
 }
 
 // Tests that snapshot generation from an empty database.
@@ -134,7 +129,7 @@ func checkSnapRoot(t *testing.T, snap *diskLayer, trieRoot common.Hash) {
 
 	snapRoot, err := generateTrieRoot(nil, "", accIt, common.Hash{}, stackTrieGenerate,
 		func(db ethdb.KeyValueWriter, accountHash, codeHash common.Hash, stat *generateStats) (common.Hash, error) {
-			storageIt, _ := snap.StorageIterator(accountHash, common.Hash{})
+			storageIt := snap.StorageIterator(accountHash, common.Hash{})
 			defer storageIt.Release()
 
 			hash, err := generateTrieRoot(nil, "", storageIt, accountHash, stackTrieGenerate, nil, stat, false)
@@ -166,7 +161,10 @@ func newHelper(scheme string) *testHelper {
 	diskdb := rawdb.NewMemoryDatabase()
 	config := &triedb.Config{}
 	if scheme == rawdb.PathScheme {
-		config.PathDB = &pathdb.Config{} // disable caching
+		config.PathDB = &pathdb.Config{
+			SnapshotNoBuild: true,
+			NoAsyncFlush:    true,
+		} // disable caching
 	} else {
 		config.HashDB = &hashdb.Config{} // disable caching
 	}
@@ -655,7 +653,7 @@ func testGenerateWithManyExtraAccounts(t *testing.T, scheme string) {
 		for i := 0; i < 1000; i++ {
 			acc := &types.StateAccount{Balance: uint256.NewInt(uint64(i)), Root: types.EmptyRootHash, CodeHash: types.EmptyCodeHash.Bytes()}
 			val, _ := rlp.EncodeToBytes(acc)
-			key := hashData([]byte(fmt.Sprintf("acc-%d", i)))
+			key := hashData(fmt.Appendf(nil, "acc-%d", i))
 			rawdb.WriteAccountSnapshot(helper.diskdb, key, val)
 		}
 	}

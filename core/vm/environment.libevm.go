@@ -50,7 +50,7 @@ func (e *environment) UseGas(gas uint64, logger *tracing.Hooks, reason tracing.G
 
 func (e *environment) ChainConfig() *params.ChainConfig  { return e.evm.chainConfig }
 func (e *environment) Rules() params.Rules               { return e.evm.chainRules }
-func (e *environment) ReadOnlyState() libevm.StateReader { return e.evm.StateDB }
+func (e *environment) ReadOnlyState() libevm.StateReader { return AsLibevmStateReader(e.evm.StateDB) }
 func (e *environment) IncomingCallType() CallType        { return e.callType }
 func (e *environment) BlockNumber() *big.Int             { return new(big.Int).Set(e.evm.Context.BlockNumber) }
 func (e *environment) BlockTime() uint64                 { return e.evm.Context.Time }
@@ -68,14 +68,14 @@ func (e *environment) refundGas(add uint64) error {
 }
 
 func (e *environment) ReadOnly() bool {
-	return e.evm.interpreter.readOnly
+	return e.evm.readOnly
 }
 
 func (e *environment) Addresses() *libevm.AddressContext {
 	return &libevm.AddressContext{
 		Origin: e.evm.Origin,
 		EVMSemantic: libevm.CallerAndSelf{
-			Caller: e.self.CallerAddress,
+			Caller: e.self.Caller(),
 			Self:   e.self.Address(),
 		},
 		Raw: &libevm.CallerAndSelf{
@@ -109,16 +109,11 @@ func (e *environment) Call(addr common.Address, input []byte, gas uint64, value 
 }
 
 func (e *environment) callContract(typ CallType, addr common.Address, input []byte, gas uint64, value *uint256.Int, opts ...CallOption) (retData []byte, retErr error) {
-	var caller ContractRef = e.self
-	if options.As[callConfig](opts...).unsafeCallerAddressProxying {
-		// Note that, in addition to being unsafe, this breaks an EVM
-		// assumption that the caller ContractRef is always a *Contract.
-		caller = AccountRef(e.self.CallerAddress)
-		if e.callType == DelegateCall {
-			// self was created with AsDelegate(), which means that
-			// CallerAddress was inherited.
-			caller = AccountRef(e.self.Address())
-		}
+	// Match the interpreter: outbound calls use the executing account's address
+	// as caller ([instructions.go] opCall uses [Contract.Address]).
+	callerAddr := e.self.Address()
+	if options.As[callConfig](opts...).unsafeCallerAddressProxying && e.callType != DelegateCall {
+		callerAddr = e.self.Caller()
 	}
 
 	if e.ReadOnly() && value != nil && !value.IsZero() {
@@ -129,7 +124,7 @@ func (e *environment) callContract(typ CallType, addr common.Address, input []by
 	}
 
 	if evm := e.evm; evm.Config.Tracer != nil {
-		evm.captureBegin(evm.depth, CALL, caller.Address(), addr, input, gas, value.ToBig())
+		evm.captureBegin(evm.depth, CALL, callerAddr, addr, input, gas, value.ToBig())
 		defer func(startGas uint64) {
 			evm.captureEnd(evm.depth, startGas, e.Gas(), retData, retErr)
 		}(gas)
@@ -137,7 +132,7 @@ func (e *environment) callContract(typ CallType, addr common.Address, input []by
 
 	switch typ {
 	case Call:
-		ret, returnGas, callErr := e.evm.Call(caller, addr, input, gas, value)
+		ret, returnGas, callErr := e.evm.Call(callerAddr, addr, input, gas, value)
 		if err := e.refundGas(returnGas); err != nil {
 			return nil, err
 		}

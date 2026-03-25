@@ -25,6 +25,7 @@ import (
 	"github.com/ava-labs/libevm/common"
 	"github.com/ava-labs/libevm/core/rawdb"
 	"github.com/ava-labs/libevm/core/state/snapshot"
+	"github.com/ava-labs/libevm/core/tracing"
 	"github.com/ava-labs/libevm/core/types"
 	"github.com/ava-labs/libevm/ethdb"
 	"github.com/ava-labs/libevm/libevm"
@@ -62,7 +63,7 @@ func TestStateDBCommitPropagatesOptions(t *testing.T) {
 	require.NoError(t, err, "New()")
 
 	// Ensures that rec.Update() will be called.
-	sdb.SetNonce(common.Address{}, 42)
+	sdb.SetNonce(common.Address{}, 42, tracing.NonceChangeUnspecified)
 
 	const snapshotPayload = "hello world"
 	var (
@@ -71,7 +72,7 @@ func TestStateDBCommitPropagatesOptions(t *testing.T) {
 	)
 	snapshotOpt := stateconf.WithSnapshotUpdatePayload(snapshotPayload)
 	triedbOpt := stateconf.WithTrieDBUpdatePayload(parentHash, currentHash)
-	_, err = sdb.Commit(0, false, stateconf.WithSnapshotUpdateOpts(snapshotOpt), stateconf.WithTrieDBUpdateOpts(triedbOpt))
+	_, err = sdb.Commit(0, false, false, stateconf.WithSnapshotUpdateOpts(snapshotOpt), stateconf.WithTrieDBUpdateOpts(triedbOpt))
 
 	require.NoErrorf(t, err, "%T.Commit(..., %T, %T)", sdb, snapshotOpt, triedbOpt)
 	assert.Equalf(t, snapshotPayload, snapRec.gotPayload, "%T payload propagated via %T.Commit() to %T.Update()", snapshotOpt, sdb, snapRec)
@@ -91,7 +92,7 @@ func (*snapTreeRecorder) Cap(common.Hash, int) error {
 
 func (r *snapTreeRecorder) Update(
 	_, _ common.Hash,
-	_ map[common.Hash]struct{}, _ map[common.Hash][]byte, _ map[common.Hash]map[common.Hash][]byte,
+	_ map[common.Hash][]byte, _ map[common.Hash]map[common.Hash][]byte,
 	opts ...stateconf.SnapshotUpdateOption,
 ) error {
 	r.gotPayload = stateconf.ExtractSnapshotUpdatePayload(opts...)
@@ -173,7 +174,7 @@ func TestTransformStateKey(t *testing.T) {
 	assertEq(t, regularKey, regularVal)
 	assertEq(t, flippedKey, flippedVal)
 
-	root, err := sdb.Commit(0, false)
+	root, err := sdb.Commit(0, false, false)
 	require.NoErrorf(t, err, "state.Commit()")
 
 	err = tdb.Commit(root, false)

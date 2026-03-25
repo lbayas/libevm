@@ -85,6 +85,11 @@ func (*NOOPHeaderHooks) DecodeRLP(h *Header, s *rlp.Stream) error {
 }
 func (*NOOPHeaderHooks) PostCopy(dst *Header) {}
 
+// Copy returns an independent NOOP payload for use when copying headers.
+func (*NOOPHeaderHooks) Copy() *NOOPHeaderHooks {
+	return &NOOPHeaderHooks{}
+}
+
 var _ = []interface {
 	rlp.Encoder
 	rlp.Decoder

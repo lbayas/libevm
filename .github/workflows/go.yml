@@ -1,10 +1,10 @@
-name: Go
-
 on:
   push:
-    branches: [main, "release/**"]
+    branches:
+      - master
   pull_request:
-    branches: [main, "release/**"]
+    branches:
+      - master
   workflow_dispatch:
 
 concurrency:
@@ -12,82 +12,92 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  # If adding a new job, add it to the `needs` list of the `go` job as this is
-  # what gates PRs.
-  go:
-    runs-on: ubuntu-latest
-    needs: [go_test_short, go_test_tooling, go_generate, go_tidy]
+  lint:
+    name: Lint
+    runs-on: [self-hosted-ghr, size-s-x64]
     steps:
-      - run: echo "Dependencies successful"
+    - uses: actions/checkout@v4
+      with:
+        submodules: false
 
-  go_test_short:
-    env:
-      FLAKY_REGEX: "ava-labs/libevm/(triedb/pathdb|eth|eth/tracers/js|eth/tracers/logger|eth/tracers/internal/tracetest|accounts/abi/bind|accounts/keystore|eth/downloader|miner|ethclient|ethclient/gethclient|eth/catalyst)$"
-    runs-on: ubuntu-latest
+    # Cache build tools to avoid downloading them each time
+    - uses: actions/cache@v4
+      with:
+        path: build/cache
+        key: ${{ runner.os }}-build-tools-cache-${{ hashFiles('build/checksums.txt') }}
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: 1.25
+        cache: false
+
+    - name: Run linters
+      run: |
+        go run build/ci.go lint
+        go run build/ci.go check_generate
+        go run build/ci.go check_baddeps
+
+  keeper:
+    name: Keeper Builds
+    needs: test
+    runs-on: [self-hosted-ghr, size-l-x64]
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: "go.mod"
-      - name: Run flaky tests sequentially
-        run:
-          | # Upstream flakes are race conditions exacerbated by concurrent tests
-          go list ./... | grep -P "${FLAKY_REGEX}" | xargs -n 1 go test -short;
-      - name: Run non-flaky tests concurrently
+          go-version: '1.25'
+          cache: false
+
+      - name: Build
+        run: go run build/ci.go keeper
+
+  test-32bit:
+    name: "32bit tests"
+    needs: test
+    runs-on: [self-hosted-ghr, size-l-x64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: false
+
+      - name: Install cross toolchain
         run: |
-          go test -short $(go list ./... | grep -Pv "${FLAKY_REGEX}");
+          sudo apt-get update
+          sudo apt-get -yq --no-install-suggests --no-install-recommends install gcc-multilib
 
-  go_test_tooling:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./libevm/tooling
-    env:
-      TARGET_BRANCH: ${{ github.event_name == 'pull_request' && github.base_ref || github.ref }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # everything
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: "./libevm/tooling/go.mod"
-      - name: Create local `main` if non-existent
-        run: git show-ref --quiet --verify refs/heads/main || git branch main origin/main
-      - run: go test -v ./... --target_branch="${{ env.TARGET_BRANCH }}"
+      - name: Build
+        run: go run build/ci.go test -arch 386 -short -p 8
 
-  go_generate:
-    env:
-      EXCLUDE_REGEX: "ava-labs/libevm/(accounts/usbwallet/trezor)$"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: "go.mod"
-
-      - name: Run `go generate`
-        run: go list ./... | grep -Pv "${EXCLUDE_REGEX}" | xargs go generate;
-
-      - name: git diff
-        run: git diff --exit-code
-
-  go_tidy:
-    runs-on: ubuntu-latest
+  test:
+    name: Test
+    needs: lint
+    runs-on: [self-hosted-ghr, size-l-x64]
     strategy:
       matrix:
-        dir: ["./", "./libevm/tooling"]
-    defaults:
-      run:
-        working-directory: ${{ matrix.dir }}
+        go:
+          - '1.25'
+          - '1.24'
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: "${{ matrix.dir }}/go.mod"
-      - run: go mod tidy
-      - run: git diff --exit-code
+          go-version: ${{ matrix.go }}
+          cache: false
+
+      - name: Run tests
+        run: go run build/ci.go test -p 8

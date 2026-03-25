@@ -21,8 +21,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/ava-labs/libevm/common"
+	"github.com/davecgh/go-spew/spew"
 )
 
 // typeWithoutStringer is an alias for the Type type which simply doesn't implement

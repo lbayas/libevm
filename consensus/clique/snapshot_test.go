@@ -28,7 +28,6 @@ import (
 	"github.com/ava-labs/libevm/core"
 	"github.com/ava-labs/libevm/core/rawdb"
 	"github.com/ava-labs/libevm/core/types"
-	"github.com/ava-labs/libevm/core/vm"
 	"github.com/ava-labs/libevm/crypto"
 	"github.com/ava-labs/libevm/params"
 )
@@ -367,7 +366,7 @@ func TestClique(t *testing.T) {
 			failure: errRecentlySigned,
 		}, {
 			// Recent signatures should not reset on checkpoint blocks imported in a new
-			// batch (https://github.com/ethereum/go-ethereum/issues/17593). Whilst this
+			// batch (https://github.com/ava-labs/libevm/issues/17593). Whilst this
 			// seems overly specific and weird, it was a Rinkeby consensus split.
 			epoch:   3,
 			signers: []string{"A", "B", "C"},
@@ -458,7 +457,7 @@ func (tt *cliqueTest) run(t *testing.T) {
 		batches[len(batches)-1] = append(batches[len(batches)-1], block)
 	}
 	// Pass all the headers through clique and ensure tallying succeeds
-	chain, err := core.NewBlockChain(rawdb.NewMemoryDatabase(), nil, genesis, nil, engine, vm.Config{}, nil)
+	chain, err := core.NewBlockChain(rawdb.NewMemoryDatabase(), genesis, engine, nil)
 	if err != nil {
 		t.Fatalf("failed to create test chain: %v", err)
 	}
@@ -467,7 +466,6 @@ func (tt *cliqueTest) run(t *testing.T) {
 	for j := 0; j < len(batches)-1; j++ {
 		if k, err := chain.InsertChain(batches[j]); err != nil {
 			t.Fatalf("failed to import batch %d, block %d: %v", j, k, err)
-			break
 		}
 	}
 	if _, err = chain.InsertChain(batches[len(batches)-1]); err != tt.failure {

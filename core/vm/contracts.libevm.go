@@ -104,12 +104,15 @@ type evmCallArgs struct {
 	callType CallType
 
 	// args:start
-	caller       ContractRef
+	caller       common.Address
 	addr         common.Address
 	input        []byte
 	gasRemaining uint64
 	value        *uint256.Int
 	// args:end
+
+	// originCaller is only used for [DelegateCall] (see [EVM.DelegateCall]'s first parameter).
+	originCaller common.Address
 }
 
 // A CallType refers to a *CALL* [OpCode] / respective method on [EVM].
@@ -162,22 +165,50 @@ func (args *evmCallArgs) run(p PrecompiledContract, input []byte) (ret []byte, e
 	}
 
 	env := args.env()
-	// Depth and read-only setting are handled by [EVMInterpreter.Run],
-	// which isn't used for precompiles, so we need to do it ourselves to
-	// maintain the expected invariants.
-	in := env.evm.interpreter
+	// Depth and read-only setting are handled by [EVM.Run] for normal
+	// contracts; precompiles must update them here.
+	ev := env.evm
+	ev.depth++
+	defer func() { ev.depth-- }()
 
-	in.evm.depth++
-	defer func() { in.evm.depth-- }()
-
-	if env.callType.readOnly() && !in.readOnly {
-		in.readOnly = true
-		defer func() { in.readOnly = false }()
+	if env.callType.readOnly() && !ev.readOnly {
+		ev.readOnly = true
+		defer func() { ev.readOnly = false }()
 	}
 
 	ret, err = sp(env, input)
 	args.gasRemaining = env.Gas()
 	return ret, err
+}
+
+// runPrecompiledOrStateful mirrors [RunPrecompiledContract] but routes stateful
+// precompiles through [evmCallArgs.run].
+func runPrecompiledOrStateful(evm *EVM, args *evmCallArgs, p PrecompiledContract, input []byte) (ret []byte, remainingGas uint64, err error) {
+	gasCost := p.RequiredGas(input)
+	gas := args.gasRemaining
+	if gas < gasCost {
+		return nil, 0, ErrOutOfGas
+	}
+	if logger := evm.Config.Tracer; logger != nil && logger.OnGasChange != nil {
+		logger.OnGasChange(gas, gas-gasCost, tracing.GasChangeCallPrecompiledContract)
+	}
+	gas -= gasCost
+	args.gasRemaining = gas
+
+	var stateDB StateDB
+	if evm.chainRules.IsAmsterdam {
+		stateDB = evm.StateDB
+	}
+	if stateDB != nil {
+		stateDB.Exist(args.addr)
+	}
+
+	if _, ok := p.(statefulPrecompile); ok {
+		ret, err = args.run(p, input)
+		return ret, args.gasRemaining, err
+	}
+	ret, err = p.Run(input)
+	return ret, args.gasRemaining, err
 }
 
 // PrecompiledStatefulContract is the stateful equivalent of a
@@ -205,6 +236,8 @@ type statefulPrecompile PrecompiledStatefulContract
 // RequiredGas always returns zero as this gas is consumed by native geth code
 // before the contract is run.
 func (statefulPrecompile) RequiredGas([]byte) uint64 { return 0 }
+
+func (statefulPrecompile) Name() string { return "stateful" }
 
 func (p statefulPrecompile) Run([]byte) ([]byte, error) {
 	// https://google.github.io/styleguide/go/best-practices.html#when-to-panic
@@ -253,35 +286,30 @@ type PrecompileEnvironment interface {
 
 func (args *evmCallArgs) env() *environment {
 	var (
-		self  common.Address
-		value = args.value
+		contractCaller common.Address
+		contractSelf   common.Address
+		value          = args.value
 	)
 	switch args.callType {
 	case StaticCall:
 		value = new(uint256.Int)
 		fallthrough
 	case Call:
-		self = args.addr
-
+		contractCaller = args.caller
+		contractSelf = args.addr
 	case DelegateCall:
-		value = nil // inherited from `args.caller` inside [Contract.AsDelegate]
-		fallthrough
+		contractCaller = args.originCaller
+		contractSelf = args.caller
 	case CallCode:
-		self = args.caller.Address()
+		contractCaller = args.caller
+		contractSelf = args.caller
 	}
-
-	// This is equivalent to the `contract` variables created by evm.*Call*()
-	// methods, for non precompiles, to pass to [EVMInterpreter.Run].
-	contract := NewContract(args.caller, AccountRef(self), value, args.gasRemaining)
-	if args.callType == DelegateCall {
-		contract = contract.AsDelegate()
-	}
-
+	contract := NewContract(contractCaller, contractSelf, value, args.gasRemaining, args.evm.jumpDests)
 	return &environment{
 		evm:       args.evm,
 		self:      contract,
 		callType:  args.callType,
-		rawCaller: args.caller.Address(),
+		rawCaller: args.caller,
 		rawSelf:   args.addr,
 	}
 }
@@ -290,12 +318,14 @@ var (
 	// These lock in the assumptions made when implementing [evmCallArgs]. If
 	// these break then the struct fields SHOULD be changed to match these
 	// signatures.
-	_ = [](func(ContractRef, common.Address, []byte, uint64, *uint256.Int) ([]byte, uint64, error)){
+	_ = [](func(common.Address, common.Address, []byte, uint64, *uint256.Int) ([]byte, uint64, error)){
 		(*EVM)(nil).Call,
 		(*EVM)(nil).CallCode,
 	}
-	_ = [](func(ContractRef, common.Address, []byte, uint64) ([]byte, uint64, error)){
+	_ = [](func(common.Address, common.Address, common.Address, []byte, uint64, *uint256.Int) ([]byte, uint64, error)){
 		(*EVM)(nil).DelegateCall,
+	}
+	_ = [](func(common.Address, common.Address, []byte, uint64) ([]byte, uint64, error)){
 		(*EVM)(nil).StaticCall,
 	}
 )

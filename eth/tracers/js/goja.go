@@ -24,12 +24,12 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/dop251/goja"
 	"github.com/ava-labs/libevm/core/tracing"
 	"github.com/ava-labs/libevm/core/types"
 	"github.com/ava-labs/libevm/eth/tracers"
 	"github.com/ava-labs/libevm/eth/tracers/internal"
 	"github.com/ava-labs/libevm/params"
+	"github.com/dop251/goja"
 	"github.com/holiman/uint256"
 
 	"github.com/ava-labs/libevm/common"
@@ -260,7 +260,8 @@ func (t *jsTracer) OnTxStart(env *tracing.VMContext, tx *types.Transaction, from
 	t.activePrecompiles = vm.ActivePrecompiles(rules)
 	t.ctx["block"] = t.vm.ToValue(t.env.BlockNumber.Uint64())
 	t.ctx["gas"] = t.vm.ToValue(tx.Gas())
-	gasPriceBig, err := t.toBig(t.vm, env.GasPrice.String())
+	gasTip, _ := tx.EffectiveGasTip(env.BaseFee)
+	gasPriceBig, err := t.toBig(t.vm, gasTip.String())
 	if err != nil {
 		t.err = err
 		return
@@ -479,7 +480,6 @@ func (t *jsTracer) setBuiltinFunctions() {
 		return hexutil.Encode(b)
 	})
 	vm.Set("toWord", func(v goja.Value) goja.Value {
-		// TODO: add test with []byte len < 32 or > 32
 		b, err := t.fromBuf(vm, v, true)
 		if err != nil {
 			vm.Interrupt(err)

@@ -22,7 +22,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/ava-labs/libevm"
+	ethereum "github.com/ava-labs/libevm"
 	"github.com/ava-labs/libevm/common"
 )
 
@@ -41,6 +41,18 @@ func TestToFilterArg(t *testing.T) {
 		output interface{}
 		err    error
 	}{
+		{
+			"without addresses",
+			ethereum.FilterQuery{
+				FromBlock: big.NewInt(1),
+				ToBlock:   big.NewInt(2),
+			},
+			map[string]interface{}{
+				"fromBlock": "0x1",
+				"toBlock":   "0x2",
+			},
+			nil,
+		},
 		{
 			"without BlockHash",
 			ethereum.FilterQuery{

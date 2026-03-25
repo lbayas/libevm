@@ -29,13 +29,13 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/dop251/goja"
 	"github.com/ava-labs/libevm/console/prompt"
 	"github.com/ava-labs/libevm/internal/jsre"
 	"github.com/ava-labs/libevm/internal/jsre/deps"
 	"github.com/ava-labs/libevm/internal/web3ext"
 	"github.com/ava-labs/libevm/log"
 	"github.com/ava-labs/libevm/rpc"
+	"github.com/dop251/goja"
 	"github.com/mattn/go-colorable"
 	"github.com/peterh/liner"
 )

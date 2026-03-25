@@ -24,11 +24,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dop251/goja"
 	"github.com/ava-labs/libevm/common/hexutil"
 	"github.com/ava-labs/libevm/console/prompt"
 	"github.com/ava-labs/libevm/internal/jsre"
 	"github.com/ava-labs/libevm/rpc"
+	"github.com/dop251/goja"
 )
 
 // bridge is a collection of JavaScript utility methods to bride the .js runtime

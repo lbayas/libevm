@@ -45,7 +45,7 @@ import (
 // [Header] or [Block] / [Body] is a non-nil `HPtr` or `BPtr` respectively. The
 // latter guarantee ensures that hooks won't be called on nil-pointer receivers.
 func RegisterExtras[
-	H any, HPtr HeaderHooksPointer[H],
+	H any, HPtr HeaderHooksPointer[H, HPtr],
 	B any, BPtr BlockBodyHooksPointer[B, BPtr],
 	SA any,
 ]() ExtraPayloads[HPtr, BPtr, SA] {
@@ -61,7 +61,7 @@ func RegisterExtras[
 }
 
 func payloadsAndConstructors[
-	H any, HPtr HeaderHooksPointer[H],
+	H any, HPtr HeaderHooksPointer[H, HPtr],
 	B any, BPtr BlockBodyHooksPointer[B, BPtr],
 	SA any,
 ]() (ExtraPayloads[HPtr, BPtr, SA], *extraConstructors) {
@@ -113,7 +113,7 @@ func payloadsAndConstructors[
 // function instead as it atomically overrides all possible packages.
 func WithTempRegisteredExtras[
 	H, B, SA any,
-	HPtr HeaderHooksPointer[H],
+	HPtr HeaderHooksPointer[H, HPtr],
 	BPtr BlockBodyHooksPointer[B, BPtr],
 ](lock libevm.ExtrasLock, fn func(ExtraPayloads[HPtr, BPtr, SA]) error) error {
 	if err := lock.Verify(); err != nil {
@@ -123,10 +123,16 @@ func WithTempRegisteredExtras[
 	return registeredExtras.TempOverride(ctors, func() error { return fn(payloads) })
 }
 
-// A HeaderHooksPointer is a type constraint for an implementation of
-// [HeaderHooks] with a pointer receiver.
-type HeaderHooksPointer[H any] interface {
+// HeaderHooksPayload is an implementation of [HeaderHooks] that can clone
+// itself. [CopyHeader] depends on this when extras are registered.
+type HeaderHooksPayload[Self any] interface {
 	HeaderHooks
+	Copy() Self
+}
+
+// A HeaderHooksPointer is the [Header] analogue of [BlockBodyHooksPointer].
+type HeaderHooksPointer[H any, Self any] interface {
+	HeaderHooksPayload[Self]
 	*H
 }
 
@@ -166,6 +172,7 @@ type extraConstructors struct {
 		hooksFromHeader(*Header) HeaderHooks
 		hooksFromBody(*Body) BlockBodyHooks
 		hooksFromBlock(*Block) BlockBodyHooks
+		cloneHeaderPayload(*Header) *pseudo.Type
 		cloneBlockPayload(*Block) *pseudo.Type
 		cloneBodyPayload(*Body) *pseudo.Type
 		cloneStateAccount(*StateAccountExtra) *StateAccountExtra
@@ -235,7 +242,7 @@ func (e *StateAccountExtra) clone() *StateAccountExtra {
 // ExtraPayloads provides strongly typed access to the extra payload carried by
 // [Header], [Body], [StateAccount], and [SlimAccount] structs. The only valid way to
 // construct an instance is by a call to [RegisterExtras].
-type ExtraPayloads[HPtr HeaderHooks, BPtr BlockBodyPayload[BPtr], SA any] struct {
+type ExtraPayloads[HPtr HeaderHooksPayload[HPtr], BPtr BlockBodyPayload[BPtr], SA any] struct {
 	Header       pseudo.Accessor[*Header, HPtr]
 	Block        pseudo.Accessor[*Block, BPtr]
 	Body         pseudo.Accessor[*Body, BPtr]
@@ -251,6 +258,11 @@ func (ExtraPayloads[HPtr, BPtr, SA]) cloneStateAccount(s *StateAccountExtra) *St
 	return &StateAccountExtra{
 		t: pseudo.From(v.Get()).Type,
 	}
+}
+
+func (ExtraPayloads[HPtr, BPtr, SA]) cloneHeaderPayload(h *Header) *pseudo.Type {
+	v := pseudo.MustNewValue[HPtr](h.extraPayload())
+	return pseudo.From(v.Get().Copy()).Type
 }
 
 // blockOrBody is an interface for use as a method argument as they can't

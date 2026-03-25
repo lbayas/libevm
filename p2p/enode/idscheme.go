@@ -23,9 +23,9 @@ import (
 
 	"github.com/ava-labs/libevm/common/math"
 	"github.com/ava-labs/libevm/crypto"
+	"github.com/ava-labs/libevm/crypto/keccak"
 	"github.com/ava-labs/libevm/p2p/enr"
 	"github.com/ava-labs/libevm/rlp"
-	"golang.org/x/crypto/sha3"
 )
 
 // ValidSchemes is a List of known secure identity schemes.
@@ -49,7 +49,7 @@ func SignV4(r *enr.Record, privkey *ecdsa.PrivateKey) error {
 	cpy.Set(enr.ID("v4"))
 	cpy.Set(Secp256k1(privkey.PublicKey))
 
-	h := sha3.NewLegacyKeccak256()
+	h := keccak.NewLegacyKeccak256()
 	rlp.Encode(h, cpy.AppendElements(nil))
 	sig, err := crypto.Sign(h.Sum(nil), privkey)
 	if err != nil {
@@ -70,7 +70,7 @@ func (V4ID) Verify(r *enr.Record, sig []byte) error {
 		return errors.New("invalid public key")
 	}
 
-	h := sha3.NewLegacyKeccak256()
+	h := keccak.NewLegacyKeccak256()
 	rlp.Encode(h, r.AppendElements(nil))
 	if !crypto.VerifySignature(entry, h.Sum(nil), sig) {
 		return enr.ErrInvalidSig

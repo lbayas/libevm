@@ -139,7 +139,7 @@ func openGitRepo(t *testing.T) *git.Repository {
 	require.NoErrorf(t, err, "git.PlainOpenWithOptions(./, %+v", opts)
 
 	fetch := &git.FetchOptions{
-		RemoteURL: "https://github.com/ethereum/go-ethereum.git",
+		RemoteURL: "https://github.com/ava-labs/libevm.git",
 	}
 	err = repo.Fetch(fetch)
 	if err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {

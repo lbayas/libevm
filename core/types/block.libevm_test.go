@@ -84,6 +84,15 @@ func (hh *stubHeaderHooks) PostCopy(dst *Header) {
 	hh.accessor.Set(dst, hh.toCopy)
 }
 
+func (hh *stubHeaderHooks) Copy() *stubHeaderHooks {
+	c := *hh
+	if hh.toCopy != nil {
+		tc := *hh.toCopy
+		c.toCopy = &tc
+	}
+	return &c
+}
+
 func TestHeaderHooks(t *testing.T) {
 	TestOnlyClearRegisteredExtras()
 	defer TestOnlyClearRegisteredExtras()
@@ -225,7 +234,7 @@ func TestBlockWithX(t *testing.T) {
 	typ := reflect.TypeOf(&Block{})
 	for i := 0; i < typ.NumMethod(); i++ {
 		method := typ.Method(i).Name
-		if method == "Withdrawals" || !strings.HasPrefix(method, "With") {
+		if method == "Withdrawals" || method == "WithWitness" || !strings.HasPrefix(method, "With") {
 			continue
 		}
 
@@ -246,8 +255,6 @@ func TestBlockWithX(t *testing.T) {
 				newBlock = block.WithBody(body)
 			case "WithSeal":
 				newBlock = block.WithSeal(&Header{})
-			case "WithWitness":
-				newBlock = block.WithWitness(&ExecutionWitness{})
 			default:
 				t.Fatalf("method call not implemented: %s", method)
 			}

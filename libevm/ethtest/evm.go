@@ -45,7 +45,6 @@ func NewZeroEVM(tb testing.TB, opts ...EVMOption) (*state.StateDB, *vm.EVM) {
 			CanTransfer: core.CanTransfer,
 			Transfer:    core.Transfer,
 		},
-		vm.TxContext{},
 		sdb,
 		&params.ChainConfig{},
 		vm.Config{},
@@ -54,18 +53,17 @@ func NewZeroEVM(tb testing.TB, opts ...EVMOption) (*state.StateDB, *vm.EVM) {
 		o.apply(args)
 	}
 
-	return sdb, vm.NewEVM(
+	evm := vm.NewEVM(
 		args.blockContext,
-		args.txContext,
 		args.stateDB,
 		args.chainConfig,
 		args.config,
 	)
+	return sdb, evm
 }
 
 type evmConstructorArgs struct {
 	blockContext vm.BlockContext
-	txContext    vm.TxContext
 	stateDB      vm.StateDB
 	chainConfig  *params.ChainConfig
 	config       vm.Config

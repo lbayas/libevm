@@ -73,14 +73,14 @@ func TestGetSetExtra(t *testing.T) {
 
 	assert.Nilf(t, state.GetExtra(stateDB, payloads, addr), "state.GetExtra() returns zero-value %T if before account creation", extra)
 	stateDB.CreateAccount(addr)
-	stateDB.SetNonce(addr, nonce)
+	stateDB.SetNonce(addr, nonce, tracing.NonceChangeUnspecified)
 	stateDB.SetBalance(addr, balance, tracing.BalanceChangeUnspecified)
 	assert.Nilf(t, state.GetExtra(stateDB, payloads, addr), "state.GetExtra() returns zero-value %T if after account creation but before SetExtra()", extra)
 	state.SetExtra(stateDB, payloads, addr, extra)
 	require.Equal(t, extra, state.GetExtra(stateDB, payloads, addr), "state.GetExtra() immediately after SetExtra()")
 
-	root, err := stateDB.Commit(1, false) // arbitrary block number
-	require.NoErrorf(t, err, "%T.Commit(1, false)", stateDB)
+	root, err := stateDB.Commit(1, false, false) // arbitrary block number
+	require.NoErrorf(t, err, "%T.Commit(1, false, false)", stateDB)
 	require.NotEqualf(t, types.EmptyRootHash, root, "root hash returned by %T.Commit() is not the empty root", stateDB)
 
 	t.Run(fmt.Sprintf("retrieve from %T", views.snaps), func(t *testing.T) {

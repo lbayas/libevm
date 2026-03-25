@@ -100,51 +100,59 @@ func ExampleInspectDatabase() {
 		fmt.Println(err)
 	}
 	// Output:
-	// +------------------------------+---------------------------+---------+-------+
-	// |           DATABASE           |         CATEGORY          |  SIZE   | ITEMS |
-	// +------------------------------+---------------------------+---------+-------+
-	// | Ancient store (Chain)        | Bodies                    | 0.00 B  |     0 |
-	// | Ancient store (Chain)        | Diffs                     | 0.00 B  |     0 |
-	// | Ancient store (Chain)        | Hashes                    | 0.00 B  |     0 |
-	// | Ancient store (Chain)        | Headers                   | 0.00 B  |     0 |
-	// | Ancient store (Chain)        | Receipts                  | 0.00 B  |     0 |
-	// | Ancient store (State)        | Account.Data              | 0.00 B  |     0 |
-	// | Ancient store (State)        | Account.Index             | 0.00 B  |     0 |
-	// | Ancient store (State)        | History.Meta              | 0.00 B  |     0 |
-	// | Ancient store (State)        | Storage.Data              | 0.00 B  |     0 |
-	// | Ancient store (State)        | Storage.Index             | 0.00 B  |     0 |
-	// | Ancient store (State_verkle) | Account.Data              | 0.00 B  |     0 |
-	// | Ancient store (State_verkle) | Account.Index             | 0.00 B  |     0 |
-	// | Ancient store (State_verkle) | History.Meta              | 0.00 B  |     0 |
-	// | Ancient store (State_verkle) | Storage.Data              | 0.00 B  |     0 |
-	// | Ancient store (State_verkle) | Storage.Index             | 0.00 B  |     0 |
-	// | Key-Value store              | Account snapshot          | 0.00 B  |     0 |
-	// | Key-Value store              | Beacon sync headers       | 0.00 B  |     0 |
-	// | Key-Value store              | Block hash->number        | 0.00 B  |     0 |
-	// | Key-Value store              | Block number->hash        | 0.00 B  |     0 |
-	// | Key-Value store              | Bloombit index            | 6.00 B  |     1 |
-	// | Key-Value store              | Bodies                    | 0.00 B  |     0 |
-	// | Key-Value store              | Clique snapshots          | 0.00 B  |     0 |
-	// | Key-Value store              | Contract codes            | 0.00 B  |     0 |
-	// | Key-Value store              | Difficulties              | 0.00 B  |     0 |
-	// | Key-Value store              | Hash trie nodes           | 0.00 B  |     0 |
-	// | Key-Value store              | Headers                   | 0.00 B  |     0 |
-	// | Key-Value store              | Path trie account nodes   | 0.00 B  |     0 |
-	// | Key-Value store              | Path trie state lookups   | 0.00 B  |     0 |
-	// | Key-Value store              | Path trie storage nodes   | 0.00 B  |     0 |
-	// | Key-Value store              | Receipt lists             | 0.00 B  |     0 |
-	// | Key-Value store              | Singleton metadata        | 41.00 B |     2 |
-	// | Key-Value store              | Storage snapshot          | 0.00 B  |     0 |
-	// | Key-Value store              | Transaction index         | 0.00 B  |     0 |
-	// | Key-Value store              | Trie preimages            | 0.00 B  |     0 |
-	// | Key-Value store              | Verkle trie nodes         | 0.00 B  |     0 |
-	// | Key-Value store              | Verkle trie state lookups | 0.00 B  |     0 |
-	// | Light client                 | Bloom trie nodes          | 0.00 B  |     0 |
-	// | Light client                 | CHT trie nodes            | 0.00 B  |     0 |
-	// | My database                  | My category               | 12.00 B |     1 |
-	// +------------------------------+---------------------------+---------+-------+
-	// |                                          TOTAL           | 59.00 B |       |
-	// +------------------------------+---------------------------+---------+-------+
+	// +---------------------------------+-----------------------------+---------+-------+
+	// |            Database             |          Category           |  Size   | Items |
+	// +---------------------------------+-----------------------------+---------+-------+
+	// |      Ancient store (Chain)      |           Bodies            | 0.00 B  |   0   |
+	// |      Ancient store (Chain)      |           Hashes            | 0.00 B  |   0   |
+	// |      Ancient store (Chain)      |           Headers           | 0.00 B  |   0   |
+	// |      Ancient store (Chain)      |          Receipts           | 0.00 B  |   0   |
+	// |      Ancient store (State)      |        Account.Data         | 0.00 B  |   0   |
+	// |      Ancient store (State)      |        Account.Index        | 0.00 B  |   0   |
+	// |      Ancient store (State)      |        History.Meta         | 0.00 B  |   0   |
+	// |      Ancient store (State)      |        Storage.Data         | 0.00 B  |   0   |
+	// |      Ancient store (State)      |        Storage.Index        | 0.00 B  |   0   |
+	// |  Ancient store (State_verkle)   |        Account.Data         | 0.00 B  |   0   |
+	// |  Ancient store (State_verkle)   |        Account.Index        | 0.00 B  |   0   |
+	// |  Ancient store (State_verkle)   |        History.Meta         | 0.00 B  |   0   |
+	// |  Ancient store (State_verkle)   |        Storage.Data         | 0.00 B  |   0   |
+	// |  Ancient store (State_verkle)   |        Storage.Index        | 0.00 B  |   0   |
+	// |    Ancient store (Trienode)     |       Trienode.Header       | 0.00 B  |   0   |
+	// |    Ancient store (Trienode)     |        Trienode.Key         | 0.00 B  |   0   |
+	// |    Ancient store (Trienode)     |       Trienode.Value        | 0.00 B  |   0   |
+	// | Ancient store (Trienode_verkle) |       Trienode.Header       | 0.00 B  |   0   |
+	// | Ancient store (Trienode_verkle) |        Trienode.Key         | 0.00 B  |   0   |
+	// | Ancient store (Trienode_verkle) |       Trienode.Value        | 0.00 B  |   0   |
+	// |         Key-Value store         |      Account snapshot       | 0.00 B  |   0   |
+	// |         Key-Value store         |     Beacon sync headers     | 0.00 B  |   0   |
+	// |         Key-Value store         |     Block hash->number      | 0.00 B  |   0   |
+	// |         Key-Value store         |     Block number->hash      | 0.00 B  |   0   |
+	// |         Key-Value store         |           Bodies            | 0.00 B  |   0   |
+	// |         Key-Value store         |      Clique snapshots       | 0.00 B  |   0   |
+	// |         Key-Value store         |       Contract codes        | 0.00 B  |   0   |
+	// |         Key-Value store         |  Difficulties (deprecated)  | 0.00 B  |   0   |
+	// |         Key-Value store         |       Hash trie nodes       | 0.00 B  |   0   |
+	// |         Key-Value store         |           Headers           | 0.00 B  |   0   |
+	// |         Key-Value store         |   Historical state index    | 0.00 B  |   0   |
+	// |         Key-Value store         |    Historical trie index    | 0.00 B  |   0   |
+	// |         Key-Value store         | Log bloombits (deprecated)  | 6.00 B  |   1   |
+	// |         Key-Value store         |     Log index block-lv      | 0.00 B  |   0   |
+	// |         Key-Value store         |  Log index filter-map rows  | 0.00 B  |   0   |
+	// |         Key-Value store         | Log index last-block-of-map | 0.00 B  |   0   |
+	// |         Key-Value store         |   Path trie account nodes   | 0.00 B  |   0   |
+	// |         Key-Value store         |   Path trie state lookups   | 0.00 B  |   0   |
+	// |         Key-Value store         |   Path trie storage nodes   | 0.00 B  |   0   |
+	// |         Key-Value store         |        Receipt lists        | 0.00 B  |   0   |
+	// |         Key-Value store         |     Singleton metadata      | 41.00 B |   2   |
+	// |         Key-Value store         |      Storage snapshot       | 0.00 B  |   0   |
+	// |         Key-Value store         |      Transaction index      | 0.00 B  |   0   |
+	// |         Key-Value store         |       Trie preimages        | 0.00 B  |   0   |
+	// |         Key-Value store         |      Verkle trie nodes      | 0.00 B  |   0   |
+	// |         Key-Value store         |  Verkle trie state lookups  | 0.00 B  |   0   |
+	// |           My database           |         My category         | 12.00 B |   1   |
+	// +---------------------------------+-----------------------------+---------+-------+
+	// |                                 |            Total            | 59.00 B |   4   |
+	// +---------------------------------+-----------------------------+---------+-------+
 }
 
 type stubDatabase struct {
@@ -153,6 +161,24 @@ type stubDatabase struct {
 }
 
 func (s *stubDatabase) NewIterator(keyPrefix, keyStart []byte) ethdb.Iterator {
+	// InspectDatabase uses one iterator per key-space shard (parallel). Each
+	// iterator needs its own cursor and only keys matching keyPrefix (+ start).
+	if stub, ok := s.iterator.(*stubIterator); ok {
+		var filtered []keyValue
+		for _, kv := range stub.kvs {
+			if len(keyPrefix) > 0 && !bytes.HasPrefix(kv.key, keyPrefix) {
+				continue
+			}
+			if len(keyStart) > 0 {
+				lowerBound := append(append([]byte{}, keyPrefix...), keyStart...)
+				if bytes.Compare(kv.key, lowerBound) < 0 {
+					continue
+				}
+			}
+			filtered = append(filtered, kv)
+		}
+		return &stubIterator{kvs: filtered}
+	}
 	return s.iterator
 }
 
@@ -182,7 +208,6 @@ func (s *stubDatabase) ReadAncients(fn func(ethdb.AncientReaderOp) error) error 
 }
 
 type stubIterator struct {
-	ethdb.Iterator
 	i   int // see [stubIterator.pos]
 	kvs []keyValue
 }
@@ -204,6 +229,8 @@ func (s *stubIterator) Next() bool {
 }
 
 func (s *stubIterator) Release() {}
+
+func (s *stubIterator) Error() error { return nil }
 
 func (s *stubIterator) Key() []byte {
 	return s.kvs[s.pos()].key

@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"testing"
 
-	dcred_secp256k1 "github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/ava-labs/libevm/crypto/secp256k1"
+	dcred_secp256k1 "github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
 func TestFuzzer(t *testing.T) {

@@ -18,6 +18,7 @@ package logger
 
 import (
 	"maps"
+	"slices"
 
 	"github.com/ava-labs/libevm/common"
 	"github.com/ava-labs/libevm/core/tracing"
@@ -88,8 +89,10 @@ func (al accessList) accessList() types.AccessList {
 		for slot := range slots {
 			tuple.StorageKeys = append(tuple.StorageKeys, slot)
 		}
-		acl = append(acl, tuple)
+		keys := slices.SortedFunc(maps.Keys(slots), common.Hash.Cmp)
+		acl = append(acl, types.AccessTuple{Address: addr, StorageKeys: keys})
 	}
+	slices.SortFunc(acl, func(a, b types.AccessTuple) int { return a.Address.Cmp(b.Address) })
 	return acl
 }
 
@@ -103,16 +106,10 @@ type AccessListTracer struct {
 // NewAccessListTracer creates a new tracer that can generate AccessLists.
 // An optional AccessList can be specified to occupy slots and addresses in
 // the resulting accesslist.
-func NewAccessListTracer(acl types.AccessList, from, to common.Address, precompiles []common.Address) *AccessListTracer {
-	excl := map[common.Address]struct{}{
-		from: {}, to: {},
-	}
-	for _, addr := range precompiles {
-		excl[addr] = struct{}{}
-	}
+func NewAccessListTracer(acl types.AccessList, addressesToExclude map[common.Address]struct{}) *AccessListTracer {
 	list := newAccessList()
 	for _, al := range acl {
-		if _, ok := excl[al.Address]; !ok {
+		if _, ok := addressesToExclude[al.Address]; !ok {
 			list.addAddress(al.Address)
 		}
 		for _, slot := range al.StorageKeys {
@@ -120,7 +117,7 @@ func NewAccessListTracer(acl types.AccessList, from, to common.Address, precompi
 		}
 	}
 	return &AccessListTracer{
-		excl: excl,
+		excl: addressesToExclude,
 		list: list,
 	}
 }

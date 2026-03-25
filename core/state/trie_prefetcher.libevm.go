@@ -108,6 +108,32 @@ func (p *subfetcherPool) execute(fn func(Trie)) {
 
 // GetAccount optimistically pre-fetches an account, dropping the returned value
 // and logging errors. See [subfetcherPool.execute] re worker pools.
+// prefetchTasks loads account and storage keys. When a [WorkerPool] is
+// configured ([WithWorkerPools]), work runs through [subfetcherPool.execute];
+// otherwise the trie's batch [Trie.PrefetchAccount] / [Trie.PrefetchStorage]
+// paths are used.
+func (sf *subfetcher) prefetchTasks(addresses []common.Address, slots [][]byte) {
+	if sf.pool.workers != nil {
+		for _, addr := range addresses {
+			sf.pool.GetAccount(addr)
+		}
+		for _, slot := range slots {
+			sf.pool.GetStorage(sf.addr, slot)
+		}
+		return
+	}
+	if len(addresses) != 0 {
+		if err := sf.trie.PrefetchAccount(addresses); err != nil {
+			log.Error("Failed to prefetch accounts", "err", err)
+		}
+	}
+	if len(slots) != 0 {
+		if err := sf.trie.PrefetchStorage(sf.addr, slots); err != nil {
+			log.Error("Failed to prefetch storage", "err", err)
+		}
+	}
+}
+
 func (p *subfetcherPool) GetAccount(addr common.Address) {
 	p.execute(func(t Trie) {
 		if _, err := t.GetAccount(addr); err != nil {

@@ -27,7 +27,6 @@ import (
 	"github.com/ava-labs/libevm/core"
 	"github.com/ava-labs/libevm/core/tracing"
 	"github.com/ava-labs/libevm/core/types"
-	"github.com/ava-labs/libevm/core/vm"
 	"github.com/ava-labs/libevm/crypto"
 	"github.com/ava-labs/libevm/libevm"
 	"github.com/ava-labs/libevm/libevm/ethtest"
@@ -157,7 +156,7 @@ func TestMinimumGasConsumption(t *testing.T) {
 
 			const startingBalance = 10 * params.Ether
 			from := crypto.PubkeyToAddress(key.PublicKey)
-			stateDB.SetNonce(from, 0)
+			stateDB.SetNonce(from, 0, tracing.NonceChangeUnspecified)
 			stateDB.SetBalance(from, uint256.NewInt(startingBalance), tracing.BalanceChangeUnspecified)
 			stateDB.AddRefund(tt.refund)
 
@@ -170,14 +169,14 @@ func TestMinimumGasConsumption(t *testing.T) {
 			wantPool := gotPool - core.GasPool(tt.wantUsed)
 
 			receipt, err := core.ApplyTransaction(
-				evm.ChainConfig(), nil, &common.Address{}, &gotPool, stateDB,
+				evm, &gotPool, stateDB,
 				&types.Header{
 					BaseFee: big.NewInt(gasPrice),
 					// Required but irrelevant fields
 					Number:     big.NewInt(0),
 					Difficulty: big.NewInt(0),
 				},
-				tx, &gotUsed, vm.Config{},
+				tx, &gotUsed,
 			)
 			require.NoError(t, err, "core.ApplyTransaction(...)")
 

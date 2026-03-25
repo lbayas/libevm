@@ -31,11 +31,10 @@ import (
 // ChainContext supports retrieving headers and consensus parameters from the
 // current blockchain to be used during transaction processing.
 type ChainContext interface {
+	consensus.ChainHeaderReader
+
 	// Engine retrieves the chain's consensus engine.
 	Engine() consensus.Engine
-
-	// GetHeader returns the header corresponding to the hash/number argument pair.
-	GetHeader(common.Hash, uint64) *types.Header
 }
 
 // NewEVMBlockContext creates a new context for use in the EVM.
@@ -45,6 +44,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		baseFee     *big.Int
 		blobBaseFee *big.Int
 		random      *common.Hash
+		slotNum     uint64
 	)
 
 	// If we don't have an explicit author (i.e. not mining), extract from the header
@@ -57,11 +57,15 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		baseFee = new(big.Int).Set(header.BaseFee)
 	}
 	if header.ExcessBlobGas != nil {
-		blobBaseFee = eip4844.CalcBlobFee(*header.ExcessBlobGas)
+		blobBaseFee = eip4844.CalcBlobFee(chain.Config(), header)
 	}
 	if header.Difficulty.Sign() == 0 {
 		random = &header.MixDigest
 	}
+	if header.SlotNumber != nil {
+		slotNum = *header.SlotNumber
+	}
+
 	return vm.BlockContext{
 		CanTransfer: CanTransfer,
 		Transfer:    Transfer,
@@ -74,6 +78,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		BlobBaseFee: blobBaseFee,
 		GasLimit:    header.GasLimit,
 		Random:      random,
+		SlotNum:     slotNum,
 		Header:      header,
 	}
 }
@@ -82,11 +87,8 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 func NewEVMTxContext(msg *Message) vm.TxContext {
 	ctx := vm.TxContext{
 		Origin:     msg.From,
-		GasPrice:   new(big.Int).Set(msg.GasPrice),
+		GasPrice:   uint256.MustFromBig(msg.GasPrice),
 		BlobHashes: msg.BlobHashes,
-	}
-	if msg.BlobGasFeeCap != nil {
-		ctx.BlobFeeCap = new(big.Int).Set(msg.BlobGasFeeCap)
 	}
 	return ctx
 }

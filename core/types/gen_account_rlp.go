@@ -2,8 +2,11 @@
 
 package types
 
-import "github.com/ava-labs/libevm/rlp"
-import "io"
+import (
+	"io"
+
+	"github.com/ava-labs/libevm/rlp"
+)
 
 func (obj *StateAccount) EncodeRLP(_w io.Writer) error {
 	w := rlp.NewEncoderBuffer(_w)

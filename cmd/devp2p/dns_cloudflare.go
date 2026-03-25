@@ -22,9 +22,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cloudflare/cloudflare-go"
 	"github.com/ava-labs/libevm/log"
 	"github.com/ava-labs/libevm/p2p/dnsdisc"
+	"github.com/cloudflare/cloudflare-go"
 	"github.com/urfave/cli/v2"
 )
 

@@ -58,6 +58,7 @@ type precompileStub struct {
 
 func (s *precompileStub) RequiredGas([]byte) uint64  { return s.requiredGas }
 func (s *precompileStub) Run([]byte) ([]byte, error) { return s.returnData, nil }
+func (s *precompileStub) Name() string               { return "precompileStub" }
 
 func TestPrecompileOverride(t *testing.T) {
 	type test struct {
@@ -209,8 +210,6 @@ func TestNewStatefulPrecompile(t *testing.T) {
 
 	caller := common.HexToAddress("CA11E12") // caller of the precompile
 	eoa := common.HexToAddress("E0A")        // caller of the precompile-caller
-	callerContract := vm.NewContract(vm.AccountRef(eoa), vm.AccountRef(caller), callCallerValue, 1e6)
-
 	state, evm := ethtest.NewZeroEVM(
 		t,
 		ethtest.WithBlockContext(
@@ -244,7 +243,7 @@ func TestNewStatefulPrecompile(t *testing.T) {
 		{
 			name: "EVM.Call()",
 			call: func() ([]byte, uint64, error) {
-				return evm.Call(callerContract, precompile, input, gasLimit, callPrecompileValue)
+				return evm.Call(caller, precompile, input, gasLimit, callPrecompileValue)
 			},
 			wantAddresses: &libevm.AddressContext{
 				Origin:      eoa,
@@ -258,7 +257,7 @@ func TestNewStatefulPrecompile(t *testing.T) {
 		{
 			name: "EVM.CallCode()",
 			call: func() ([]byte, uint64, error) {
-				return evm.CallCode(callerContract, precompile, input, gasLimit, callPrecompileValue)
+				return evm.CallCode(caller, precompile, input, gasLimit, callPrecompileValue)
 			},
 			wantAddresses: &libevm.AddressContext{
 				Origin: eoa,
@@ -275,7 +274,7 @@ func TestNewStatefulPrecompile(t *testing.T) {
 		{
 			name: "EVM.DelegateCall()",
 			call: func() ([]byte, uint64, error) {
-				return evm.DelegateCall(callerContract, precompile, input, gasLimit)
+				return evm.DelegateCall(eoa, caller, precompile, input, gasLimit, callCallerValue)
 			},
 			wantAddresses: &libevm.AddressContext{
 				Origin: eoa,
@@ -292,7 +291,7 @@ func TestNewStatefulPrecompile(t *testing.T) {
 		{
 			name: "EVM.StaticCall()",
 			call: func() ([]byte, uint64, error) {
-				return evm.StaticCall(callerContract, precompile, input, gasLimit)
+				return evm.StaticCall(caller, precompile, input, gasLimit)
 			},
 			wantAddresses: &libevm.AddressContext{
 				Origin:      eoa,
@@ -349,7 +348,7 @@ func TestPrecompileInvalidatesExecution(t *testing.T) {
 	hooks.Register(t)
 
 	// The EVM instance MUST be reused across all tests to ensure that
-	// [vm.EVM.Reset] undoes any invalidation.
+	// resetting the tx context undoes any invalidation.
 	stateDB, evm := ethtest.NewZeroEVM(t)
 
 	tests := []struct {
@@ -372,7 +371,7 @@ func TestPrecompileInvalidatesExecution(t *testing.T) {
 		},
 		{
 			// Tests that:
-			// (a) [vm.EVM.Reset] undoes the previous invalidation; and
+			// (a) resetting the tx context undoes the previous invalidation; and
 			// (b) Invalidation reverted state changes, as seen by the nonce.
 			name:    "evm_reset_not_invalidating_after_invalid",
 			input:   []byte{},
@@ -394,7 +393,8 @@ func TestPrecompileInvalidatesExecution(t *testing.T) {
 				Value:    big.NewInt(0),
 			}
 
-			evm.Reset(core.NewEVMTxContext(msg), stateDB)
+			evm.StateDB = stateDB
+			evm.SetTxContext(core.NewEVMTxContext(msg))
 
 			gas := core.GasPool(math.MaxUint64)
 			_, err := core.ApplyMessage(evm, msg, &gas)
@@ -457,7 +457,7 @@ func TestInheritReadOnly(t *testing.T) {
 	rng := ethtest.NewPseudoRand(42)
 	contractAddr := rng.Address()
 	state.CreateAccount(contractAddr)
-	state.SetCode(contractAddr, convertBytes[vm.OpCode, byte](contract...))
+	state.SetCode(contractAddr, convertBytes[vm.OpCode, byte](contract...), tracing.CodeChangeContractCreation)
 
 	// (3)
 
@@ -859,7 +859,7 @@ func TestPrecompileMakeCall(t *testing.T) {
 			evm.Origin = eoa
 			state.CreateAccount(caller)
 			proxy := makeReturnProxy(t, sut, tt.incomingCallType)
-			state.SetCode(caller, convertBytes[vm.OpCode, byte](proxy...))
+			state.SetCode(caller, convertBytes[vm.OpCode, byte](proxy...), tracing.CodeChangeContractCreation)
 
 			got, _, err := evm.Call(vm.AccountRef(eoa), caller, tt.eoaTxCallData, 1e6, uint256.NewInt(0))
 			require.NoError(t, err)
@@ -888,16 +888,16 @@ func TestPrecompileCallWithTracer(t *testing.T) {
 	hooks.Register(t)
 
 	state, evm := ethtest.NewZeroEVM(t)
-	evm.GasPrice = big.NewInt(1)
+	evm.GasPrice = uint256.NewInt(1)
 
 	state.CreateAccount(contract)
 	var zeroHash common.Hash
 	value := rng.Hash()
 	state.SetState(contract, zeroHash, value)
-	state.SetCode(contract, convertBytes[vm.OpCode, byte](vm.PC, vm.SLOAD))
+	state.SetCode(contract, convertBytes[vm.OpCode, byte](vm.PC, vm.SLOAD), tracing.CodeChangeContractCreation)
 
 	const tracerName = "prestateTracer"
-	tracer, err := tracers.DefaultDirectory.New(tracerName, nil, nil, nil)
+	tracer, err := tracers.DefaultDirectory.New(tracerName, nil, nil, &params.ChainConfig{ChainID: big.NewInt(1)})
 	require.NoErrorf(t, err, "tracers.DefaultDirectory.New(%q)", tracerName)
 	evm.Config.Tracer = tracer.Hooks
 

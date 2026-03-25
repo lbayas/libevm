@@ -24,17 +24,17 @@ import (
 
 // canCreateContract is a convenience wrapper for calling the
 // [params.RulesHooks.CanCreateContract] hook.
-func (evm *EVM) canCreateContract(caller ContractRef, contractToCreate common.Address, gas uint64) (remainingGas uint64, _ error) {
+func (evm *EVM) canCreateContract(caller common.Address, contractToCreate common.Address, gas uint64) (remainingGas uint64, _ error) {
 	addrs := &libevm.AddressContext{
 		Origin: evm.Origin,
 		EVMSemantic: libevm.CallerAndSelf{
-			Caller: caller.Address(),
+			Caller: caller,
 			Self:   contractToCreate,
 		},
 		// The "raw" caller isn't guaranteed to be known if the caller is a
 		// delegate so the `Raw` field is documented as always being nil.
 	}
-	gas, err := evm.chainRules.Hooks().CanCreateContract(addrs, gas, evm.StateDB)
+	gas, err := evm.chainRules.Hooks().CanCreateContract(addrs, gas, AsLibevmStateReader(evm.StateDB))
 
 	// NOTE that this block only performs logging and that all paths propagate
 	// `(gas, err)` unmodified.
@@ -54,7 +54,7 @@ func (evm *EVM) canCreateContract(caller ContractRef, contractToCreate common.Ad
 
 // InvalidateExecution sets the error that will be returned by
 // [EVM.ExecutionInvalidated] for the length of the current transaction; i.e.
-// until [EVM.Reset] is called. This is honoured by state-transition logic to
+// until the next [EVM.SetTxContext] call. This is honoured by state-transition logic to
 // render the execution itself void (as against reverted).
 //
 // This method MUST NOT be exposed in a manner that allows contracts to set
@@ -65,7 +65,7 @@ func (evm *EVM) InvalidateExecution(err error) {
 
 // ExecutionInvalidated returns the last value passed to
 // [EVM.InvalidateExecution] or nil if no such call has occurred or if
-// [EVM.Reset] has been called.
+// [EVM.SetTxContext] has been called.
 func (evm *EVM) ExecutionInvalidated() error {
 	return evm.executionInvalidated
 }

@@ -25,6 +25,8 @@ import (
 )
 
 func TestRangeProofKeysWithDifferentLengths(t *testing.T) {
+	// Shorter key is a byte-prefix of the longer; VerifyRangeProof rejects that
+	// as "range contains path prefixes" (see loop in VerifyRangeProof).
 	var (
 		root  = common.HexToHash("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 		start = common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000")
@@ -44,5 +46,5 @@ func TestRangeProofKeysWithDifferentLengths(t *testing.T) {
 		values,
 		nil, // force it to use stacktrie
 	)
-	require.ErrorIs(t, err, errKeysHaveDifferentLengths)
+	require.EqualError(t, err, "range contains path prefixes")
 }

@@ -441,19 +441,27 @@ func checkAccounts(t *testing.T, live map[common.Address]accounts.Account, walle
 	}
 }
 
-// checkEvents checks that all events in 'want' are present in 'have'. Events may be present multiple times.
+// checkEvents checks that 'want' and 'have' are the same multiset of wallet events.
+// Order may differ from the operation sequence because refreshWallets emits arrivals
+// and drops sorted by account URL when several keystore changes are coalesced into
+// one cache refresh (e.g. after filesystem notify debounce).
 func checkEvents(t *testing.T, want []walletEvent, have []walletEvent) {
+	haveLeft := slices.Clone(have)
 	for _, wantEv := range want {
-		nmatch := 0
-		for ; len(have) > 0; nmatch++ {
-			if have[0].Kind != wantEv.Kind || have[0].a != wantEv.a {
+		idx := -1
+		for i, h := range haveLeft {
+			if h.Kind == wantEv.Kind && h.a == wantEv.a {
+				idx = i
 				break
 			}
-			have = have[1:]
 		}
-		if nmatch == 0 {
+		if idx < 0 {
 			t.Fatalf("can't find event with Kind=%v for %x", wantEv.Kind, wantEv.a.Address)
 		}
+		haveLeft = append(haveLeft[:idx], haveLeft[idx+1:]...)
+	}
+	if len(haveLeft) > 0 {
+		t.Fatalf("unexpected %d extra wallet events (first: Kind=%v %x)", len(haveLeft), haveLeft[0].Kind, haveLeft[0].a.Address)
 	}
 }
 

@@ -63,7 +63,12 @@ type extraChange[SA SelfCloner[SA]] struct {
 	prev     SA
 }
 
-func (e extraChange[SA]) dirtied() *common.Address { return e.account }
+func (e extraChange[SA]) dirtied() (common.Address, bool) {
+	if e.account == nil {
+		return common.Address{}, false
+	}
+	return *e.account, true
+}
 
 func (e extraChange[SA]) revert(s *StateDB) {
 	e.accessor.Set(&s.getStateObject(*e.account).data, e.prev)

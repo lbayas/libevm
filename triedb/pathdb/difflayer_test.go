@@ -30,27 +30,27 @@ import (
 func emptyLayer() *diskLayer {
 	return &diskLayer{
 		db:     New(rawdb.NewMemoryDatabase(), nil, false),
-		buffer: newBuffer(defaultBufferSize, nil, 0),
+		buffer: newBuffer(defaultBufferSize, nil, nil, 0),
 	}
 }
 
 // goos: darwin
 // goarch: arm64
-// pkg: github.com/ethereum/go-ethereum/trie
+// pkg: github.com/ava-labs/libevm/trie
 // BenchmarkSearch128Layers
 // BenchmarkSearch128Layers-8   	  243826	      4755 ns/op
 func BenchmarkSearch128Layers(b *testing.B) { benchmarkSearch(b, 0, 128) }
 
 // goos: darwin
 // goarch: arm64
-// pkg: github.com/ethereum/go-ethereum/trie
+// pkg: github.com/ava-labs/libevm/trie
 // BenchmarkSearch512Layers
 // BenchmarkSearch512Layers-8   	   49686	     24256 ns/op
 func BenchmarkSearch512Layers(b *testing.B) { benchmarkSearch(b, 0, 512) }
 
 // goos: darwin
 // goarch: arm64
-// pkg: github.com/ethereum/go-ethereum/trie
+// pkg: github.com/ava-labs/libevm/trie
 // BenchmarkSearch1Layer
 // BenchmarkSearch1Layer-8   	14062725	        88.40 ns/op
 func BenchmarkSearch1Layer(b *testing.B) { benchmarkSearch(b, 127, 128) }
@@ -76,7 +76,7 @@ func benchmarkSearch(b *testing.B, depth int, total int) {
 				nblob = common.CopyBytes(blob)
 			}
 		}
-		return newDiffLayer(parent, common.Hash{}, 0, 0, newNodeSet(nodes), NewStateSetWithOrigin(nil, nil))
+		return newDiffLayer(parent, common.Hash{}, 0, 0, NewNodeSetWithOrigin(nodes, nil), NewStateSetWithOrigin(nil, nil, nil, nil, false))
 	}
 	var layer layer
 	layer = emptyLayer()
@@ -102,7 +102,7 @@ func benchmarkSearch(b *testing.B, depth int, total int) {
 
 // goos: darwin
 // goarch: arm64
-// pkg: github.com/ethereum/go-ethereum/trie
+// pkg: github.com/ava-labs/libevm/trie
 // BenchmarkPersist
 // BenchmarkPersist-8   	      10	 111252975 ns/op
 func BenchmarkPersist(b *testing.B) {
@@ -118,7 +118,7 @@ func BenchmarkPersist(b *testing.B) {
 			)
 			nodes[common.Hash{}][string(path)] = node
 		}
-		return newDiffLayer(parent, common.Hash{}, 0, 0, newNodeSet(nodes), NewStateSetWithOrigin(nil, nil))
+		return newDiffLayer(parent, common.Hash{}, 0, 0, NewNodeSetWithOrigin(nodes, nil), NewStateSetWithOrigin(nil, nil, nil, nil, false))
 	}
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
@@ -156,7 +156,7 @@ func BenchmarkJournal(b *testing.B) {
 			)
 			nodes[common.Hash{}][string(path)] = node
 		}
-		return newDiffLayer(parent, common.Hash{}, 0, 0, newNodeSet(nodes), new(StateSetWithOrigin))
+		return newDiffLayer(parent, common.Hash{}, 0, 0, NewNodeSetWithOrigin(nodes, nil), NewStateSetWithOrigin(nil, nil, nil, nil, false))
 	}
 	var layer layer
 	layer = emptyLayer()

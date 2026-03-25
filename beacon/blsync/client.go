@@ -23,9 +23,11 @@ import (
 	"github.com/ava-labs/libevm/beacon/light/sync"
 	"github.com/ava-labs/libevm/beacon/params"
 	"github.com/ava-labs/libevm/beacon/types"
+	"github.com/ava-labs/libevm/common"
 	"github.com/ava-labs/libevm/common/mclock"
 	"github.com/ava-labs/libevm/ethdb/memorydb"
 	"github.com/ava-labs/libevm/event"
+	"github.com/ava-labs/libevm/log"
 	"github.com/ava-labs/libevm/rpc"
 )
 
@@ -46,7 +48,13 @@ func NewClient(config params.ClientConfig) *Client {
 	var (
 		db             = memorydb.New()
 		committeeChain = light.NewCommitteeChain(db, &config.ChainConfig, config.Threshold, !config.NoFilter)
-		headTracker    = light.NewHeadTracker(committeeChain, config.Threshold)
+		headTracker    = light.NewHeadTracker(committeeChain, config.Threshold, func(checkpoint common.Hash) {
+			if saved, err := config.SaveCheckpointToFile(checkpoint); saved {
+				log.Debug("Saved beacon checkpoint", "file", config.CheckpointFile, "checkpoint", checkpoint)
+			} else if err != nil {
+				log.Error("Failed to save beacon checkpoint", "file", config.CheckpointFile, "checkpoint", checkpoint, "error", err)
+			}
+		})
 	)
 	headSync := sync.NewHeadSync(headTracker, committeeChain)
 

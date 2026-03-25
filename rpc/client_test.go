@@ -33,8 +33,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/ava-labs/libevm/log"
+	"github.com/davecgh/go-spew/spew"
 )
 
 func TestClientRequest(t *testing.T) {
@@ -521,7 +521,7 @@ func TestClientSubscribeClose(t *testing.T) {
 	}
 }
 
-// This test reproduces https://github.com/ethereum/go-ethereum/issues/17837 where the
+// This test reproduces https://github.com/ava-labs/libevm/issues/17837 where the
 // client hangs during shutdown when Unsubscribe races with Client.Close.
 func TestClientCloseUnsubscribeRace(t *testing.T) {
 	t.Parallel()
@@ -566,7 +566,7 @@ func (b *unsubscribeBlocker) readBatch() ([]*jsonrpcMessage, bool, error) {
 // TestUnsubscribeTimeout verifies that calling the client's Unsubscribe
 // function will eventually timeout and not block forever in case the serve does
 // not respond.
-// It reproducers the issue https://github.com/ethereum/go-ethereum/issues/30156
+// It reproducers the issue https://github.com/ava-labs/libevm/issues/30156
 func TestUnsubscribeTimeout(t *testing.T) {
 	t.Parallel()
 
@@ -674,7 +674,7 @@ func TestClientSubscriptionUnsubscribeServer(t *testing.T) {
 }
 
 // This checks that the subscribed channel can be closed after Unsubscribe.
-// It is the reproducer for https://github.com/ethereum/go-ethereum/issues/22322
+// It is the reproducer for https://github.com/ava-labs/libevm/issues/22322
 func TestClientSubscriptionChannelClose(t *testing.T) {
 	t.Parallel()
 
@@ -973,7 +973,7 @@ func (l *flakeyListener) Accept() (net.Conn, error) {
 
 	c, err := l.Listener.Accept()
 	if err == nil {
-		timeout := time.Duration(rand.Int63n(int64(l.maxKillTimeout)))
+		timeout := max(time.Millisecond*10, time.Duration(rand.Int63n(int64(l.maxKillTimeout))))
 		time.AfterFunc(timeout, func() {
 			log.Debug(fmt.Sprintf("killing conn %v after %v", c.LocalAddr(), timeout))
 			c.Close()

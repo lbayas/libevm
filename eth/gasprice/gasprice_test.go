@@ -25,13 +25,11 @@ import (
 	"testing"
 
 	"github.com/ava-labs/libevm/common"
-	"github.com/ava-labs/libevm/consensus"
 	"github.com/ava-labs/libevm/consensus/beacon"
 	"github.com/ava-labs/libevm/consensus/ethash"
 	"github.com/ava-labs/libevm/core"
 	"github.com/ava-labs/libevm/core/state"
 	"github.com/ava-labs/libevm/core/types"
-	"github.com/ava-labs/libevm/core/vm"
 	"github.com/ava-labs/libevm/crypto"
 	"github.com/ava-labs/libevm/crypto/kzg4844"
 	"github.com/ava-labs/libevm/event"
@@ -148,13 +146,17 @@ func newTestBackend(t *testing.T, londonBlock *big.Int, cancunBlock *big.Int, pe
 	config.LondonBlock = londonBlock
 	config.ArrowGlacierBlock = londonBlock
 	config.GrayGlacierBlock = londonBlock
-	var engine consensus.Engine = beacon.New(ethash.NewFaker())
-	td := params.GenesisDifficulty.Uint64()
+	if cancunBlock != nil {
+		// Enable the merge with cancun fork.
+		config.MergeNetsplitBlock = cancunBlock
+	}
+	engine := beacon.New(ethash.NewFaker())
 
 	if cancunBlock != nil {
 		ts := gspec.Timestamp + cancunBlock.Uint64()*10 // fixed 10 sec block time in blockgen
 		config.ShanghaiTime = &ts
 		config.CancunTime = &ts
+		config.BlobScheduleConfig = params.DefaultBlobSchedule
 		signer = types.LatestSigner(gspec.Config)
 	}
 
@@ -206,11 +208,10 @@ func newTestBackend(t *testing.T, londonBlock *big.Int, cancunBlock *big.Int, pe
 				b.AddTx(types.MustSignNewTx(key, signer, blobTx))
 			}
 		}
-		td += b.Difficulty().Uint64()
 	})
+
 	// Construct testing chain
-	gspec.Config.TerminalTotalDifficulty = new(big.Int).SetUint64(td)
-	chain, err := core.NewBlockChain(db, &core.CacheConfig{TrieCleanNoPrefetch: true}, gspec, nil, engine, vm.Config{}, nil)
+	chain, err := core.NewBlockChain(db, gspec, engine, &core.BlockChainConfig{NoPrefetch: true})
 	if err != nil {
 		t.Fatalf("Failed to create local chain, %v", err)
 	}

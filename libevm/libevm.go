@@ -30,6 +30,7 @@ type (
 	PrecompiledContract interface {
 		RequiredGas(input []byte) uint64
 		Run(input []byte) ([]byte, error)
+		Name() string
 	}
 	PrecompiledContracts map[common.Address]PrecompiledContract
 )

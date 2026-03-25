@@ -19,6 +19,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -29,7 +30,7 @@ import (
 type evmArgOverrider struct {
 	newEVMchainID int64
 
-	gotResetChainID  *big.Int
+	gotResetHook     bool
 	resetTxContextTo TxContext
 	resetStateDBTo   StateDB
 }
@@ -39,8 +40,8 @@ func (o *evmArgOverrider) OverrideNewEVMArgs(args *NewEVMArgs) *NewEVMArgs {
 	return args
 }
 
-func (o *evmArgOverrider) OverrideEVMResetArgs(r params.Rules, _ *EVMResetArgs) *EVMResetArgs {
-	o.gotResetChainID = r.ChainID
+func (o *evmArgOverrider) OverrideEVMResetArgs(_ params.Rules, _ *EVMResetArgs) *EVMResetArgs {
+	o.gotResetHook = true
 	return &EVMResetArgs{
 		TxContext: o.resetTxContextTo,
 		StateDB:   o.resetStateDBTo,
@@ -58,7 +59,7 @@ func TestOverrideNewEVMArgs(t *testing.T) {
 	// The overrideNewEVMArgs function accepts and returns all arguments to
 	// NewEVM(), in order. Here we lock in our assumption of that order. If this
 	// breaks then all functionality overriding the args MUST be updated.
-	var _ func(BlockContext, TxContext, StateDB, *params.ChainConfig, Config) *EVM = NewEVM
+	var _ func(BlockContext, StateDB, *params.ChainConfig, Config) *EVM = NewEVM
 
 	const chainID = 13579
 	hooks := evmArgOverrider{newEVMchainID: chainID}
@@ -66,7 +67,7 @@ func TestOverrideNewEVMArgs(t *testing.T) {
 
 	assertChainID := func(t *testing.T, want int64) {
 		t.Helper()
-		evm := NewEVM(BlockContext{}, TxContext{}, nil, nil, Config{})
+		evm := NewEVM(BlockContext{}, nil, nil, Config{})
 		got := evm.ChainConfig().ChainID
 		require.Equalf(t, big.NewInt(want), got, "%T.ChainConfig().ChainID set by NewEVM() hook", evm)
 	}
@@ -88,9 +89,6 @@ func TestOverrideNewEVMArgs(t *testing.T) {
 }
 
 func TestOverrideEVMResetArgs(t *testing.T) {
-	// Equivalent to rationale for TestOverrideNewEVMArgs above.
-	var _ func(TxContext, StateDB) = (*EVM)(nil).Reset
-
 	const (
 		chainID  = 0xc0ffee
 		gasPrice = 1357924680
@@ -98,13 +96,14 @@ func TestOverrideEVMResetArgs(t *testing.T) {
 	hooks := &evmArgOverrider{
 		newEVMchainID: chainID,
 		resetTxContextTo: TxContext{
-			GasPrice: big.NewInt(gasPrice),
+			GasPrice: uint256.NewInt(gasPrice),
 		},
 	}
 	hooks.register(t)
 
-	evm := NewEVM(BlockContext{}, TxContext{}, nil, nil, Config{})
-	evm.Reset(TxContext{}, nil)
-	assert.Equalf(t, big.NewInt(chainID), hooks.gotResetChainID, "%T.ChainID passed to Reset() hook", params.Rules{})
-	assert.Equalf(t, big.NewInt(gasPrice), evm.GasPrice, "%T.GasPrice set by Reset() hook", evm)
+	evm := NewEVM(BlockContext{}, nil, &params.ChainConfig{ChainID: big.NewInt(chainID)}, Config{})
+	hooks.gotResetHook = false
+	evm.SetTxContext(TxContext{})
+	assert.Truef(t, hooks.gotResetHook, "SetTxContext should invoke OverrideEVMResetArgs")
+	assert.Equalf(t, uint256.NewInt(gasPrice), evm.GasPrice, "%T.GasPrice set by SetTxContext() hook", evm)
 }
