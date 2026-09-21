@@ -103,7 +103,7 @@ func (e *environment) Call(addr common.Address, input []byte, gas uint64, value 
 	return e.callContract(Call, addr, input, gas, value, opts...)
 }
 
-func (e *environment) callContract(typ CallType, addr common.Address, input []byte, gas uint64, value *uint256.Int, opts ...CallOption) (retData []byte, retErr error) {
+func (e *environment) callContract(typ CallType, addr common.Address, input []byte, gas uint64, value *uint256.Int, opts ...CallOption) ([]byte, error) {
 	cfg := options.As[callConfig](opts...)
 
 	var caller ContractRef = e.self
@@ -143,19 +143,6 @@ func (e *environment) callContract(typ CallType, addr common.Address, input []by
 		return nil, ErrOutOfGas
 	}
 
-	if t := e.evm.Config.Tracer; t != nil {
-		var bigVal *big.Int
-		if value != nil {
-			bigVal = value.ToBig()
-		}
-		t.CaptureEnter(typ.OpCode(), caller.Address(), addr, input, gasForCall, bigVal)
-
-		startGas := gasForCall
-		defer func() {
-			t.CaptureEnd(retData, startGas-e.Gas(), retErr)
-		}()
-	}
-
 	switch typ {
 	case Call:
 		ret, returnGas, callErr := e.evm.Call(caller, addr, input, gasForCall, value)
@@ -168,7 +155,8 @@ func (e *environment) callContract(typ CallType, addr common.Address, input []by
 		// early abstraction, to signal to future maintainers. If implementing
 		// them, there's likely no need to honour the
 		// [callOptUNSAFECallerAddressProxy] because it's purely for backwards
-		// compatibility.
+		// compatibility, however the "callTracer" test MUST be extended to
+		// demonstrate the correct type.
 		fallthrough
 	default:
 		return nil, fmt.Errorf("unimplemented precompile call type %v", typ)
