@@ -49,7 +49,7 @@ func TestGuardIntegration(t *testing.T) {
 		PrecompileOverrides: map[common.Address]libevm.PrecompiledContract{
 			eve: vm.NewStatefulPrecompile(func(env vm.PrecompileEnvironment, input []byte) (ret []byte, err error) {
 				eveCalled = true
-				return env.Call(sut, []byte{}, env.Gas(), zero()) // i.e. reenter
+				return env.Call(sut, []byte{}, env.Gas()/2, zero()) // i.e. reenter
 			}),
 			sut: vm.NewStatefulPrecompile(func(env vm.PrecompileEnvironment, input []byte) (ret []byte, err error) {
 				// The argument is optional and used only to allow more than one
@@ -63,7 +63,7 @@ func TestGuardIntegration(t *testing.T) {
 					// work.
 					panic("reentrancy")
 				}
-				return env.Call(eve, []byte{}, env.Gas(), zero())
+				return env.Call(eve, []byte{}, env.Gas()/2, zero())
 			}),
 		},
 	}
@@ -74,7 +74,7 @@ func TestGuardIntegration(t *testing.T) {
 	require.True(t, eveCalled, "Malicious contract called")
 	// The error is propagated Guard() -> reentered SUT -> Eve -> top-level SUT -> evm.Call()
 	// This MUST NOT be [assert.ErrorIs] as such errors are never wrapped in geth.
-	assert.Equal(t, err, vm.ErrExecutionReverted, "Precompile reverted")
+	assert.Equal(t, vm.ErrExecutionReverted, err, "Precompile reverted")
 	assert.Equal(t, returnIfGuarded, got, "Precompile reverted with expected data")
 
 	t.Run("static_call", func(t *testing.T) {
