@@ -670,7 +670,7 @@ func TestPrecompileMakeCall(t *testing.T) {
 		PrecompileOverrides: map[common.Address]libevm.PrecompiledContract{
 			sut: vm.NewStatefulPrecompile(func(env vm.PrecompileEnvironment, input []byte) (ret []byte, err error) {
 				opts := []vm.CallOption{
-					// Correct gas accounting is tested in [TestPrecompileCallWithCallTracer].
+					// Correct gas accounting is tested in [TestPrecompileCallGasWithCallTracer].
 					vm.WithLegacyOutboundCallGas(),
 				}
 				if bytes.Equal(input, unsafeCallerProxyOptSentinel) {
