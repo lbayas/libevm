@@ -20,10 +20,7 @@ import "github.com/ava-labs/libevm/libevm/options"
 
 type callConfig struct {
 	unsafeCallerAddressProxying bool
-	// legacyOutboundCallGas, if true, skips EIP-150 call gas (63/64) and
-	// CallStipend handling so the callee receives the full `gas` argument and
-	// the parent is charged exactly that amount — matching pre-fix behaviour.
-	legacyOutboundCallGas bool
+	legacyOutboundCallGas       bool
 }
 
 // A CallOption modifies the default behaviour of a contract call.
@@ -42,9 +39,10 @@ func WithUNSAFECallerAddressProxying() CallOption {
 	})
 }
 
-// WithLegacyOutboundCallGas disables EIP-150 outbound call gas rules for this
-// call: the parent is charged the full requested gas and the callee receives
-// that full amount (no 63/64 cap, no call-value stipend).
+// WithLegacyOutboundCallGas disables all constant- and dynamic-gas charges, as
+// well as call stipends, the EIP-150 63/64 rule, and callee address warming for
+// this call. The gas charged to the caller and the gas received by the callee
+// are identical.
 //
 // Deprecated: only for backwards compatibility with historical chain behaviour
 // (e.g. legacy native-asset precompile semantics). New precompiles MUST NOT use
