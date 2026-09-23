@@ -196,7 +196,7 @@ func TestNewStatefulPrecompile(t *testing.T) {
 	header := &types.Header{
 		Number:     rng.BigUint64(),
 		Time:       rng.Uint64(),
-		Difficulty: rng.BigUint64(),
+		Difficulty: big.NewInt(0), // post Merge
 	}
 	input := rng.Bytes(8)
 	stateValue := rng.Hash()
@@ -208,14 +208,15 @@ func TestNewStatefulPrecompile(t *testing.T) {
 	eoa := common.HexToAddress("E0A")        // caller of the precompile-caller
 	callerContract := vm.NewContract(vm.AccountRef(eoa), vm.AccountRef(caller), callCallerValue, 1e6)
 
+	config := *params.MergedTestChainConfig
+	config.ChainID = chainID
+
 	state, evm := ethtest.NewZeroEVM(
 		t,
 		ethtest.WithBlockContext(
 			core.NewEVMBlockContext(header, nil, rng.AddressPtr()),
 		),
-		ethtest.WithChainConfig(
-			&params.ChainConfig{ChainID: chainID},
-		),
+		ethtest.WithChainConfig(&config),
 	)
 	state.SetState(precompile, slot, stateValue)
 	state.SetBalance(caller, new(uint256.Int).Not(uint256.NewInt(0)))
@@ -440,17 +441,12 @@ func TestInheritReadOnly(t *testing.T) {
 			),
 		},
 	}
-	hookstest.Register(t, params.Extras[*hookstest.Stub, *hookstest.Stub]{
-		NewRules: func(_ *params.ChainConfig, r *params.Rules, _ *hookstest.Stub, blockNum *big.Int, isMerge bool, timestamp uint64) *hookstest.Stub {
-			r.IsCancun = true // enable PUSH0
-			return hooks
-		},
-	})
+	hooks.Register(t)
 
 	// (2)
 	contract := makeReturnProxy(t, precompile, vm.CALL)
 
-	state, evm := ethtest.NewZeroEVM(t)
+	state, evm := ethtest.NewZeroEVM(t, ethtest.WithAllEIPs())
 	rng := ethtest.NewPseudoRand(42)
 	contractAddr := rng.Address()
 	state.CreateAccount(contractAddr)
@@ -523,7 +519,7 @@ func makeReturnProxy(t *testing.T, dest common.Address, call vm.OpCode) []vm.OpC
 	contract = append(contract, convertBytes[byte, vm.OpCode](dest[:]...)...)
 
 	contract = append(contract,
-		p0, // gas
+		vm.GAS,
 		call,
 
 		// See function comment re ignored reverts.
@@ -669,10 +665,7 @@ func TestPrecompileMakeCall(t *testing.T) {
 	hooks := &hookstest.Stub{
 		PrecompileOverrides: map[common.Address]libevm.PrecompiledContract{
 			sut: vm.NewStatefulPrecompile(func(env vm.PrecompileEnvironment, input []byte) (ret []byte, err error) {
-				opts := []vm.CallOption{
-					// Correct gas accounting is tested in [TestPrecompileCallGasWithCallTracer].
-					vm.WithLegacyOutboundCallGas(),
-				}
+				var opts []vm.CallOption
 				if bytes.Equal(input, unsafeCallerProxyOptSentinel) {
 					opts = append(opts, vm.WithUNSAFECallerAddressProxying())
 				}
@@ -692,12 +685,7 @@ func TestPrecompileMakeCall(t *testing.T) {
 			}),
 		},
 	}
-	hookstest.Register(t, params.Extras[*hookstest.Stub, *hookstest.Stub]{
-		NewRules: func(_ *params.ChainConfig, r *params.Rules, _ *hookstest.Stub, blockNum *big.Int, isMerge bool, timestamp uint64) *hookstest.Stub {
-			r.IsCancun = true // enable PUSH0
-			return hooks
-		},
-	})
+	hooks.Register(t)
 
 	tests := []struct {
 		incomingCallType vm.OpCode
@@ -829,7 +817,7 @@ func TestPrecompileMakeCall(t *testing.T) {
 			tt.want.Addresses.Raw = &tt.want.Addresses.EVMSemantic
 
 			t.Logf("calldata = %q", tt.eoaTxCallData)
-			state, evm := ethtest.NewZeroEVM(t)
+			state, evm := ethtest.NewZeroEVM(t, ethtest.WithAllEIPs())
 			evm.Origin = eoa
 			state.CreateAccount(caller)
 			proxy := makeReturnProxy(t, sut, tt.incomingCallType)
@@ -855,13 +843,13 @@ func TestPrecompileCallWithPrestateTracer(t *testing.T) {
 	hooks := &hookstest.Stub{
 		PrecompileOverrides: map[common.Address]libevm.PrecompiledContract{
 			precompile: vm.NewStatefulPrecompile(func(env vm.PrecompileEnvironment, input []byte) (ret []byte, err error) {
-				return env.Call(contract, nil, env.Gas(), uint256.NewInt(0), vm.WithLegacyOutboundCallGas())
+				return env.Call(contract, nil, env.Gas(), uint256.NewInt(0))
 			}),
 		},
 	}
 	hooks.Register(t)
 
-	state, evm := ethtest.NewZeroEVM(t)
+	state, evm := ethtest.NewZeroEVM(t, ethtest.WithAllEIPs())
 	evm.GasPrice = big.NewInt(1)
 
 	state.CreateAccount(contract)
@@ -992,14 +980,7 @@ func TestPrecompileCallGasWithCallTracer(t *testing.T) {
 			tracer, err := tracers.DefaultDirectory.New(tracerName, nil, nil)
 			require.NoErrorf(t, err, "tracers.DefaultDirectory.New(%q)", tracerName)
 
-			sdb, evm := ethtest.NewZeroEVM(t,
-				ethtest.WithChainConfig(config),
-				ethtest.WithBlockContext(vm.BlockContext{
-					CanTransfer: core.CanTransfer,
-					Transfer:    core.Transfer,
-					BlockNumber: big.NewInt(1),
-				}),
-			)
+			sdb, evm := ethtest.NewZeroEVM(t, ethtest.WithBlockNumberAndChainConfig(1, config))
 			evm.Config.Tracer = tracer
 
 			sdb.SetBalance(precompile, new(uint256.Int).SetAllOne())
@@ -1078,14 +1059,7 @@ func TestNotWarmCalledAddressOnPrecompileOutOfGas(t *testing.T) {
 	}
 	hooks.Register(t)
 
-	sdb, evm := ethtest.NewZeroEVM(t,
-		ethtest.WithChainConfig(params.MergedTestChainConfig),
-		ethtest.WithBlockContext(vm.BlockContext{
-			CanTransfer: core.CanTransfer,
-			Transfer:    core.Transfer,
-			BlockNumber: big.NewInt(1),
-		}),
-	)
+	sdb, evm := ethtest.NewZeroEVM(t, ethtest.WithAllEIPs())
 	sdb.SetBalance(eoa, new(uint256.Int).SetAllOne())
 	sdb.SetBalance(precompile, new(uint256.Int).SetAllOne())
 
