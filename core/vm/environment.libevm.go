@@ -206,6 +206,8 @@ func (e *environment) buyCallGas(typ CallType, cfg *callConfig, addr common.Addr
 		return 0, ErrOutOfGas
 	}
 
+	// [operation.dynamicGas] for *CALL returns a total that already includes
+	// [EVM.callGasTemp], so the propagated gas was charged above.
 	bought = e.evm.callGasTemp
 	if !value.IsZero() {
 		bought += params.CallStipend
